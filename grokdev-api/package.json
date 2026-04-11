@@ -20,7 +20,7 @@
     "@ai-sdk/google": "^3.0.60",
     "@ai-sdk/xai": "^3.0.80",
     "@google/genai": "^1.48.0",
-    "@octokit/rest": "^22.0.1",
+    "@octokit/rest": "^20.1.1",
     "@prisma/client": "^6.19.2",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",

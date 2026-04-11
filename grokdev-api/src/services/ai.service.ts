@@ -139,6 +139,10 @@ export class AIService {
         return { error: 'File not found.' };
       }
 
+      if (!file.sha) {
+        return { error: 'File SHA not available.' };
+      }
+
       const result = await this.gh.deleteFile(owner, repo, path, message, file.sha);
       return { success: true };
     } catch (error: any) {
