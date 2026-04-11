@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  username     String         @unique
+  email        String         @unique
+  passwordHash String
+  githubToken  String?        // Encrypted
+  createdAt    DateTime       @default(now())
+  sessions      Session[]
+  conversations Conversation[]
+  repositories  Repository[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  repoId    String?
+  repo      Repository? @relation(fields: [repoId], references: [id])
+  title     String
+  model     String
+  createdAt DateTime  @default(now())
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  role           String       // 'user', 'assistant', 'system', 'tool'
+  content        String
+  toolCalls      Json?        // Optional tool calls
+  createdAt      DateTime     @default(now())
+}
+
+model Repository {
+  id            String         @id @default(uuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  owner         String
+  name          String
+  branch        String
+  clonedAt      DateTime?
+  localPath     String?
+  fileCaches    FileCache[]
+  conversations Conversation[]
+}
+
+model FileCache {
+  id        String     @id @default(uuid())
+  repoId    String
+  repo      Repository @relation(fields: [repoId], references: [id])
+  path      String
+  content   String
+  sha       String
+  updatedAt DateTime   @updatedAt
+}

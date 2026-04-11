@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Env files
+.env
+.env.*
+
+# Logs
+*.log
+error.txt
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS
+.DS_Store
+
+# Prisma
+# If you don't want to commit the SQLite database
+# *.db
+# *.db-journal

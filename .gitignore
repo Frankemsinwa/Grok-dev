@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Env
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+error.txt*
+
+# IDEs
+.vscode/
+.idea/
+
+# GrokDev specific
+GrokDev_Build_Plan.docx
+_MConverter.eu_GrokDev_Build_Plan.md
+chat.json

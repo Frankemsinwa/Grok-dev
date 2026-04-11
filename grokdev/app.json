@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "grokdev",
+    "slug": "grokdev",
+    "scheme": "com.grokdev",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/Grok-solid.jpg",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/Grok-trans.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/Grok-trans.png",
+        "backgroundColor": "#1e293b"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "favicon": "./assets/Grok-trans.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ]
+  }
+}
