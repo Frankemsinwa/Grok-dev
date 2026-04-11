@@ -59,7 +59,11 @@ export default function DiffViewerScreen() {
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to commit ${proposal.path}`);
+          const errorData = await response.json();
+          console.log('[DEBUG] Commit error response:', errorData);
+          throw new Error(`Failed to commit ${proposal.path}: ${errorData.error || errorData.message}`);
+        } else {
+          console.log('[DEBUG] Commit successful for:', proposal.path, 'sha:', proposal.sha);
         }
       }
       

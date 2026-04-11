@@ -152,19 +152,28 @@ const MessageBubble = React.memo(({ item, isUser, messages, setProposal, router,
                       let sha: string | undefined;
                       
                       try {
-                        const response = await expoFetch(`${API_BASE_URL}/repos/${currentRepo.owner.login}/${currentRepo.name}/contents/${encodeURIComponent(path)}?branch=${currentBranch}`, {
+                        const response = await expoFetch(`${API_BASE_URL}/repos/${currentRepo.owner.login}/${currentRepo.name}/file?path=${encodeURIComponent(path)}&branch=${currentBranch}`, {
                           headers: { Authorization: `Bearer ${token}` }
                         });
                         if (response.ok) {
                           const result = await response.json();
+                          console.log('[DEBUG] File result:', result);
                           oldContent = result.content || '';
                           sha = result.sha;
+                        } else {
+                          console.log('[DEBUG] File response not ok:', response.status, response.statusText);
                         }
                       } catch (e) {
                          console.warn('Failed to fetch old content', e);
                       }
                       
-                      setProposal({ path, oldContent, newContent, sha });
+                        console.log('[DEBUG] Setting proposal with data:', {
+                          path,
+                          oldContent,
+                          newContent,
+                          sha
+                        });
+                        setProposal({ path, oldContent, newContent, sha });
                       router.push('/diff');
                     }
                   } catch (e) {

@@ -151,9 +151,9 @@ export class AIService {
     console.log(`[AI-TOOL] get_file_diff | owner="${owner}" repo="${repo}" path="${path}" branch="${branch}"`);
     try {
       const result = await this.gh.getFileContent(owner, repo, path, branch);
-      return { path, oldContent: result.content, newContent };
+      return { path, oldContent: result.content, newContent, sha: result.sha };
     } catch (error) {
-      return { path, oldContent: '', newContent };
+      return { path, oldContent: '', newContent, sha: undefined };
     }
   }
 }

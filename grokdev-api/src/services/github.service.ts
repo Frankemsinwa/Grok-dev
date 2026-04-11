@@ -158,6 +158,8 @@ export class GitHubService {
     if (sha) params.sha = sha;
     if (branch) params.branch = branch;
 
+    console.log('[GitHub] commitFile params:', { owner, repo, path, hasSha: !!sha, sha, branch, message, contentLength: content.length });
+
     const { data } = await this.octokit.repos.createOrUpdateFileContents(params);
     return data;
   }

@@ -92,7 +92,9 @@ router.post('/:owner/:repo/commit', authMiddleware, async (req: AuthRequest, res
     const result = await gh.commitFile(owner, repo, path, content, message, sha, branch);
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('Commit error:', error.message, error.status, error.response?.data);
+    const ghError = error.response?.data || { message: error.message };
+    res.status(error.status || 500).json({ error: ghError.message || error.message });
   }
 });
 
