@@ -158,7 +158,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         return { role: m.role, content: textContent };
       }
 
-      // 2. ASSISTANT: format correctly for SDK 6
+      // 2. ASSISTANT: format correctly for SDK 3
       if (m.role === 'assistant') {
         const parts: any[] = [];
 
@@ -166,11 +166,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         if (typeof m.content === 'string') {
           assistantContent = m.content;
         } else if (Array.isArray(m.content)) {
-          // If it's already an array of parts, normalize it
-          m.content.forEach((part: any) => {
-            if (part.type === 'text') assistantContent += part.text;
-            else if (part.text) assistantContent += part.text;
-          });
+          assistantContent = m.content.map((c: any) => c.text || "").join("");
         } else if (m.content) {
           assistantContent = String(m.content);
         }
@@ -183,67 +179,72 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
           m.toolCalls.forEach((tc: any) => {
             parts.push({
               type: 'tool-call',
-              toolCallId: tc.toolCallId || tc.id,
+              toolCallId: tc.toolCallId,
               toolName: tc.toolName,
-              args: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
+              input: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
+              providerOptions: tc.providerOptions || tc.providerMetadata, // AI SDK V3 modern structure
+              providerMetadata: tc.providerMetadata || tc.providerOptions // Legacy AI SDK structure
             });
           });
         }
 
         return {
           role: 'assistant',
-          content: parts.length > 0 ? parts : [{ type: 'text', text: "" }],
+          content: parts.length > 0 ? parts : "", // Empty string fallback
+          providerOptions: m.providerOptions || m.providerMetadata,
+          providerMetadata: m.providerMetadata || m.providerOptions
         };
       }
 
-      // 3. TOOL: format correctly for SDK 6
+      // 3. TOOL: format correctly for SDK 3
       if (m.role === 'tool') {
         try {
           const toolData = typeof m.content === 'string' ? JSON.parse(m.content) : m.content;
           
-          // Data from DB is { toolCallId, toolName, result }
-          if (toolData && toolData.toolCallId) {
-             const resultData = toolData.result !== undefined ? toolData.result : (toolData.output || toolData);
+          let toolCallId = m.toolCallId || 'unknown';
+          let toolName = m.toolName || 'unknown_tool';
+          
+          if (Array.isArray(toolData)) {
+            const parts = toolData.map(td => {
+               const trId = td.toolCallId || toolCallId;
+               const trName = td.toolName || toolName;
+               const resultData = td.result !== undefined ? td.result : (td.output || td);
+               return {
+                 type: 'tool-result',
+                 toolCallId: trId,
+                 toolName: trName,
+                 output: {
+                   type: typeof resultData === 'string' ? 'text' : 'json',
+                   value: resultData
+                 }
+               };
+            });
+            return { role: 'tool', content: parts };
+          } else {
+             const resultData = toolData?.result !== undefined ? toolData.result : (toolData?.output || toolData);
+             toolCallId = toolData?.toolCallId || toolCallId;
+             toolName = toolData?.toolName || toolName;
              return {
                role: 'tool',
                content: [{
                  type: 'tool-result',
-                 toolCallId: toolData.toolCallId,
-                 toolName: toolData.toolName || 'unknown',
-                 result: resultData,
-                 isError: !!toolData.error || toolData.isError || false
+                 toolCallId,
+                 toolName,
+                 output: {
+                   type: typeof resultData === 'string' ? 'text' : 'json',
+                   value: resultData
+                 }
                }]
              };
-          } else if (Array.isArray(toolData)) {
-            const parts = toolData.map(td => ({
-               type: 'tool-result',
-               toolCallId: td.toolCallId || 'unknown',
-               toolName: td.toolName || 'unknown',
-               result: td.result !== undefined ? td.result : (td.output || td),
-               isError: !!td.error || td.isError || false
-            }));
-            return { role: 'tool', content: parts };
           }
-          
-          return {
-              role: 'tool',
-              content: [{
-                 type: 'tool-result',
-                 toolCallId: m.toolCallId || 'unknown',
-                 toolName: m.toolName || 'unknown',
-                 result: String(m.content),
-                 isError: false
-              }]
-          };
         } catch (e) {
           return {
               role: 'tool',
               content: [{
                  type: 'tool-result',
-                 toolCallId: m.toolCallId || 'unknown',
-                 toolName: m.toolName || 'unknown',
-                 result: String(m.content),
-                 isError: false
+                 toolCallId: 'unknown',
+                 toolName: 'unknown',
+                 output: { type: 'text', value: String(m.content) }
               }]
           };
         }
@@ -252,50 +253,24 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
     });
 
     // final safety: Ensure strict turn order (user -> assistant -> tool -> assistant)
+    // and remove any tool result that doesn't have a preceding assistant tool-call
     const turnFixedMessages: any[] = [];
     validMessages.forEach((m: any, i: number) => {
       if (!m) return;
-      
-      const lastMsg = turnFixedMessages[turnFixedMessages.length - 1];
-      
-      // Merge consecutive user messages
-      if (lastMsg && lastMsg.role === 'user' && m.role === 'user') {
-        lastMsg.content += "\n" + m.content;
+      if (m.role === 'tool') {
+        const lastMsg = turnFixedMessages[turnFixedMessages.length - 1];
+        if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.toolCalls) {
+          console.warn(`[ENGINE] Dropping rogue tool result at turn ${i} (no preceding tool-call)`);
+          return;
+        }
+      }
+      // Avoid consecutive user messages (merge them)
+      if (m.role === 'user' && turnFixedMessages.length > 0 && turnFixedMessages[turnFixedMessages.length - 1]?.role === 'user') {
+        turnFixedMessages[turnFixedMessages.length - 1].content += "\n" + m.content;
         return;
       }
-
-      // Merge consecutive tool messages (SDK 6 requirement)
-      if (lastMsg && lastMsg.role === 'tool' && m.role === 'tool') {
-        lastMsg.content = [...lastMsg.content, ...m.content];
-        return;
-      }
-
-      // Ensure tool result follows assistant with tool calls
-      // If we see an assistant message and then another message (not tool), 
-      // check if it had tool calls. If so, and we are skipping results, it's an error.
-      if (lastMsg && lastMsg.role === 'assistant' && m.role !== 'tool') {
-         const hasToolCalls = Array.isArray(lastMsg.content) && 
-                            lastMsg.content.some((p: any) => p.type === 'tool-call');
-         if (hasToolCalls) {
-            console.warn(`[ENGINE] Assistant turn ${i-1} has tool calls but next role is ${m.role}. Stripping tool calls to avoid SDK error.`);
-            lastMsg.content = lastMsg.content.filter((p: any) => p.type !== 'tool-call');
-         }
-      }
-
       turnFixedMessages.push(m);
     });
-
-    // If the VERY last message is an assistant message with tool calls, we must strip them
-    // because we are about to append a new 'user' message, and tool calls must be resolved first.
-    const finalLastMsg = turnFixedMessages[turnFixedMessages.length - 1];
-    if (finalLastMsg && finalLastMsg.role === 'assistant') {
-       const hasToolCalls = Array.isArray(finalLastMsg.content) && 
-                          finalLastMsg.content.some((p: any) => p.type === 'tool-call');
-       if (hasToolCalls) {
-          console.warn(`[ENGINE] Stripping dangling tool calls from last assistant message.`);
-          finalLastMsg.content = finalLastMsg.content.filter((p: any) => p.type !== 'tool-call');
-       }
-    }
 
     console.log(`[ENGINE] Handshaking with ${turnFixedMessages.length} messages (Turn-Fixed)...`);
     // Print the exact object structure of the failing message if it's turn 3 or 4
@@ -418,17 +393,20 @@ STRICT OPERATIONAL RULES:
           if (t && t.execute) {
             console.log(`[AGENT-TOOL] Executing ${call.toolName}...`);
             try {
-              const output = await t.execute(call.input || call.args);
+              const output = await t.execute(call.input);
               stepResults.push({
                 toolCallId: call.toolCallId,
                 toolName: call.toolName,
-                result: output
+                output // Map to 'output' as per local types
               });
               stepToolParts.push({
                  type: 'tool-result',
                  toolCallId: call.toolCallId,
                  toolName: call.toolName,
-                 result: output
+                 output: {
+                   type: typeof output === 'string' ? 'text' : 'json',
+                   value: output
+                 }
               });
             } catch (err: any) {
               stepResults.push({
@@ -440,8 +418,10 @@ STRICT OPERATIONAL RULES:
                  type: 'tool-result',
                  toolCallId: call.toolCallId,
                  toolName: call.toolName,
-                 result: err.message || 'Tool execution failed',
-                 isError: true
+                 output: {
+                   type: 'error-text',
+                   value: err.message || 'Tool execution failed'
+                 }
               });
             }
           }
@@ -449,7 +429,7 @@ STRICT OPERATIONAL RULES:
 
         allToolResults.push(...stepResults);
 
-        // 1. ADD ASSISTANT MESSAGE (with tool calls)
+        // Map the assistant step correctly
         const asstParts: any[] = [];
         if (result.text) asstParts.push({ type: 'text', text: result.text });
         stepToolCalls.forEach((tc: any) => {
@@ -457,12 +437,19 @@ STRICT OPERATIONAL RULES:
              type: 'tool-call',
              toolCallId: tc.toolCallId,
              toolName: tc.toolName,
-             args: tc.args || tc.input || {},
+             input: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
+             providerOptions: tc.providerOptions || tc.providerMetadata,
+             providerMetadata: tc.providerMetadata || tc.providerOptions // Very crucial for Gemini 3.1 thought_signature
            });
         });
-        currentMessages.push({ role: 'assistant', content: asstParts });
 
-        // 2. ADD TOOL MESSAGE (with all results for those calls)
+        // Update conversation state for next step matching the exact schema
+        currentMessages.push({ 
+           role: 'assistant', 
+           content: asstParts, 
+           providerOptions: (result as any).providerOptions || (result as any).providerMetadata,
+           providerMetadata: (result as any).providerMetadata || (result as any).providerOptions 
+        });
         currentMessages.push({ role: 'tool', content: stepToolParts });
 
         stepCount++;
