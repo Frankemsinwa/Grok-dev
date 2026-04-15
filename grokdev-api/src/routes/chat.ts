@@ -410,11 +410,11 @@ STRICT OPERATIONAL RULES:
           if (t && t.execute) {
             console.log(`[AGENT-TOOL] Executing ${call.toolName}...`);
             try {
-              const output = await t.execute(call.input);
+              const output = await t.execute(call.input || call.args);
               stepResults.push({
                 toolCallId: call.toolCallId,
                 toolName: call.toolName,
-                output // Map to 'output' as per local types
+                result: output
               });
               stepToolParts.push({
                  type: 'tool-result',
@@ -441,7 +441,7 @@ STRICT OPERATIONAL RULES:
 
         allToolResults.push(...stepResults);
 
-        // Map the assistant step correctly
+        // 1. ADD ASSISTANT MESSAGE (with tool calls)
         const asstParts: any[] = [];
         if (result.text) asstParts.push({ type: 'text', text: result.text });
         stepToolCalls.forEach((tc: any) => {
@@ -449,19 +449,12 @@ STRICT OPERATIONAL RULES:
              type: 'tool-call',
              toolCallId: tc.toolCallId,
              toolName: tc.toolName,
-             args: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
-             providerOptions: tc.providerOptions || tc.providerMetadata,
-             providerMetadata: tc.providerMetadata || tc.providerOptions // Very crucial for Gemini 3.1 thought_signature
+             args: tc.args || tc.input || {},
            });
         });
+        currentMessages.push({ role: 'assistant', content: asstParts });
 
-        // Update conversation state for next step matching the exact schema
-        currentMessages.push({ 
-           role: 'assistant', 
-           content: asstParts, 
-           providerOptions: (result as any).providerOptions || (result as any).providerMetadata,
-           providerMetadata: (result as any).providerMetadata || (result as any).providerOptions 
-        });
+        // 2. ADD TOOL MESSAGE (with all results for those calls)
         currentMessages.push({ role: 'tool', content: stepToolParts });
 
         stepCount++;
