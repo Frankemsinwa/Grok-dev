@@ -158,7 +158,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         return { role: m.role, content: textContent };
       }
 
-      // 2. ASSISTANT: format correctly for SDK 3
+      // 2. ASSISTANT: format correctly for SDK 6
       if (m.role === 'assistant') {
         const parts: any[] = [];
 
@@ -166,7 +166,11 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         if (typeof m.content === 'string') {
           assistantContent = m.content;
         } else if (Array.isArray(m.content)) {
-          assistantContent = m.content.map((c: any) => c.text || "").join("");
+          // If it's already an array of parts, normalize it
+          m.content.forEach((part: any) => {
+            if (part.type === 'text') assistantContent += part.text;
+            else if (part.text) assistantContent += part.text;
+          });
         } else if (m.content) {
           assistantContent = String(m.content);
         }
@@ -182,52 +186,44 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
               toolCallId: tc.toolCallId || tc.id,
               toolName: tc.toolName,
               args: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
-              providerOptions: tc.providerOptions || tc.providerMetadata, // AI SDK V3 modern structure
-              providerMetadata: tc.providerMetadata || tc.providerOptions // Legacy AI SDK structure
             });
           });
         }
 
         return {
           role: 'assistant',
-          content: parts.length > 0 ? parts : "", // Empty string fallback
-          providerOptions: m.providerOptions || m.providerMetadata,
-          providerMetadata: m.providerMetadata || m.providerOptions
+          content: parts.length > 0 ? parts : [{ type: 'text', text: "" }],
         };
       }
 
-      // 3. TOOL: format correctly for SDK 3
+      // 3. TOOL: format correctly for SDK 6
       if (m.role === 'tool') {
         try {
+          // tool content in our DB is stored as stringified { toolCallId, toolName, result }
           const toolData = typeof m.content === 'string' ? JSON.parse(m.content) : m.content;
-          
-          let toolCallId = m.toolCallId || toolData?.toolCallId || 'unknown';
-          let toolName = m.toolName || toolData?.toolName || 'unknown_tool';
           
           if (Array.isArray(toolData)) {
             const parts = toolData.map(td => {
-               const trId = td.toolCallId || toolCallId;
-               const trName = td.toolName || toolName;
                const resultData = td.result !== undefined ? td.result : (td.output || td);
                return {
                  type: 'tool-result',
-                 toolCallId: trId,
-                 toolName: trName,
-                 result: resultData
+                 toolCallId: td.toolCallId || 'unknown',
+                 toolName: td.toolName || 'unknown',
+                 result: resultData,
+                 isError: td.isError || false
                };
             });
             return { role: 'tool', content: parts };
           } else {
              const resultData = toolData?.result !== undefined ? toolData.result : (toolData?.output || toolData);
-             toolCallId = toolData?.toolCallId || toolCallId;
-             toolName = toolData?.toolName || toolName;
              return {
                role: 'tool',
                content: [{
                  type: 'tool-result',
-                 toolCallId,
-                 toolName,
-                 result: resultData
+                 toolCallId: toolData?.toolCallId || m.toolCallId || 'unknown',
+                 toolName: toolData?.toolName || m.toolName || 'unknown',
+                 result: resultData,
+                 isError: toolData?.isError || false
                }]
              };
           }
@@ -238,7 +234,8 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
                  type: 'tool-result',
                  toolCallId: m.toolCallId || 'unknown',
                  toolName: m.toolName || 'unknown',
-                 result: String(m.content)
+                 result: String(m.content),
+                 isError: false
               }]
           };
         }
@@ -247,27 +244,31 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
     });
 
     // final safety: Ensure strict turn order (user -> assistant -> tool -> assistant)
-    // and remove any tool result that doesn't have a preceding assistant tool-call
     const turnFixedMessages: any[] = [];
     validMessages.forEach((m: any, i: number) => {
       if (!m) return;
       
-      // Merge consecutive messages of the same role if they are 'user' or 'tool'
       const lastMsg = turnFixedMessages[turnFixedMessages.length - 1];
       
-      if (lastMsg && lastMsg.role === m.role) {
-        if (m.role === 'user') {
-          lastMsg.content += "\n" + m.content;
-          return;
-        }
-        if (m.role === 'tool') {
-          lastMsg.content = [...lastMsg.content, ...m.content];
-          return;
-        }
+      // Merge consecutive user messages
+      if (lastMsg && lastMsg.role === 'user' && m.role === 'user') {
+        lastMsg.content += "\n" + m.content;
+        return;
       }
 
+      // Merge consecutive tool messages (SDK 6 requirement)
+      if (lastMsg && lastMsg.role === 'tool' && m.role === 'tool') {
+        lastMsg.content = [...lastMsg.content, ...m.content];
+        return;
+      }
+
+      // Ensure tool result follows assistant with tool calls
       if (m.role === 'tool') {
-        if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.content.some((p: any) => p.type === 'tool-call')) {
+        const hasToolCalls = lastMsg && lastMsg.role === 'assistant' && 
+                           Array.isArray(lastMsg.content) && 
+                           lastMsg.content.some((p: any) => p.type === 'tool-call');
+        
+        if (!hasToolCalls) {
           console.warn(`[ENGINE] Dropping rogue tool result at turn ${i} (no preceding tool-call)`);
           return;
         }
@@ -275,6 +276,18 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
 
       turnFixedMessages.push(m);
     });
+
+    // Additional check: Ensure all tool calls in the LAST assistant message have matching tool results
+    const lastMsg = turnFixedMessages[turnFixedMessages.length - 1];
+    if (lastMsg && lastMsg.role === 'assistant') {
+      const toolCalls = lastMsg.content.filter((p: any) => p.type === 'tool-call');
+      if (toolCalls.length > 0) {
+        // If the last message has tool calls, it MUST be followed by a tool message
+        // Since we are adding a new user message at the end, this situation shouldn't happen 
+        // unless the history is corrupted.
+        console.warn(`[ENGINE] Last message in history has tool calls but no results. This might cause SDK errors.`);
+      }
+    }
 
     console.log(`[ENGINE] Handshaking with ${turnFixedMessages.length} messages (Turn-Fixed)...`);
     // Print the exact object structure of the failing message if it's turn 3 or 4
