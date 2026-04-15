@@ -179,9 +179,9 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
           m.toolCalls.forEach((tc: any) => {
             parts.push({
               type: 'tool-call',
-              toolCallId: tc.toolCallId,
+              toolCallId: tc.toolCallId || tc.id,
               toolName: tc.toolName,
-              input: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
+              args: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
               providerOptions: tc.providerOptions || tc.providerMetadata, // AI SDK V3 modern structure
               providerMetadata: tc.providerMetadata || tc.providerOptions // Legacy AI SDK structure
             });
@@ -201,8 +201,8 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         try {
           const toolData = typeof m.content === 'string' ? JSON.parse(m.content) : m.content;
           
-          let toolCallId = m.toolCallId || 'unknown';
-          let toolName = m.toolName || 'unknown_tool';
+          let toolCallId = m.toolCallId || toolData?.toolCallId || 'unknown';
+          let toolName = m.toolName || toolData?.toolName || 'unknown_tool';
           
           if (Array.isArray(toolData)) {
             const parts = toolData.map(td => {
@@ -213,10 +213,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
                  type: 'tool-result',
                  toolCallId: trId,
                  toolName: trName,
-                 output: {
-                   type: typeof resultData === 'string' ? 'text' : 'json',
-                   value: resultData
-                 }
+                 result: resultData
                };
             });
             return { role: 'tool', content: parts };
@@ -230,10 +227,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
                  type: 'tool-result',
                  toolCallId,
                  toolName,
-                 output: {
-                   type: typeof resultData === 'string' ? 'text' : 'json',
-                   value: resultData
-                 }
+                 result: resultData
                }]
              };
           }
@@ -242,9 +236,9 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
               role: 'tool',
               content: [{
                  type: 'tool-result',
-                 toolCallId: 'unknown',
-                 toolName: 'unknown',
-                 output: { type: 'text', value: String(m.content) }
+                 toolCallId: m.toolCallId || 'unknown',
+                 toolName: m.toolName || 'unknown',
+                 result: String(m.content)
               }]
           };
         }
@@ -257,18 +251,28 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
     const turnFixedMessages: any[] = [];
     validMessages.forEach((m: any, i: number) => {
       if (!m) return;
+      
+      // Merge consecutive messages of the same role if they are 'user' or 'tool'
+      const lastMsg = turnFixedMessages[turnFixedMessages.length - 1];
+      
+      if (lastMsg && lastMsg.role === m.role) {
+        if (m.role === 'user') {
+          lastMsg.content += "\n" + m.content;
+          return;
+        }
+        if (m.role === 'tool') {
+          lastMsg.content = [...lastMsg.content, ...m.content];
+          return;
+        }
+      }
+
       if (m.role === 'tool') {
-        const lastMsg = turnFixedMessages[turnFixedMessages.length - 1];
-        if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.toolCalls) {
+        if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.content.some((p: any) => p.type === 'tool-call')) {
           console.warn(`[ENGINE] Dropping rogue tool result at turn ${i} (no preceding tool-call)`);
           return;
         }
       }
-      // Avoid consecutive user messages (merge them)
-      if (m.role === 'user' && turnFixedMessages.length > 0 && turnFixedMessages[turnFixedMessages.length - 1]?.role === 'user') {
-        turnFixedMessages[turnFixedMessages.length - 1].content += "\n" + m.content;
-        return;
-      }
+
       turnFixedMessages.push(m);
     });
 
@@ -403,10 +407,7 @@ STRICT OPERATIONAL RULES:
                  type: 'tool-result',
                  toolCallId: call.toolCallId,
                  toolName: call.toolName,
-                 output: {
-                   type: typeof output === 'string' ? 'text' : 'json',
-                   value: output
-                 }
+                 result: output
               });
             } catch (err: any) {
               stepResults.push({
@@ -418,10 +419,8 @@ STRICT OPERATIONAL RULES:
                  type: 'tool-result',
                  toolCallId: call.toolCallId,
                  toolName: call.toolName,
-                 output: {
-                   type: 'error-text',
-                   value: err.message || 'Tool execution failed'
-                 }
+                 result: err.message || 'Tool execution failed',
+                 isError: true
               });
             }
           }
@@ -437,7 +436,7 @@ STRICT OPERATIONAL RULES:
              type: 'tool-call',
              toolCallId: tc.toolCallId,
              toolName: tc.toolName,
-             input: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
+             args: typeof tc.args === 'string' ? JSON.parse(tc.args) : (tc.args || tc.input || {}),
              providerOptions: tc.providerOptions || tc.providerMetadata,
              providerMetadata: tc.providerMetadata || tc.providerOptions // Very crucial for Gemini 3.1 thought_signature
            });
