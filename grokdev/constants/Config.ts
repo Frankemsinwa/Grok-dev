@@ -2,7 +2,6 @@ import Constants from 'expo-constants';
 
 /**
  * Dynamically determines the API Base URL.
- * Falls back to the host IP (useful for physical devices/emulators) if the env var is missing.
  */
 const getApiBaseUrl = () => {
   // 1. Check for the EXPO_PUBLIC_API_BASE_URL environment variable
@@ -10,7 +9,6 @@ const getApiBaseUrl = () => {
   if (envUrl) return envUrl;
 
   // 2. Fallback for Local Development (Physical Devices / Emulators)
-  // Constants.expoConfig.hostUri gives the IP:Port of the packager
   const debuggerHost = Constants.expoConfig?.hostUri;
   const hostIp = debuggerHost?.split(':')[0];
 

@@ -199,34 +199,42 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
       // 3. TOOL: format correctly for SDK 6
       if (m.role === 'tool') {
         try {
-          // tool content in our DB is stored as stringified { toolCallId, toolName, result }
           const toolData = typeof m.content === 'string' ? JSON.parse(m.content) : m.content;
           
-          if (Array.isArray(toolData)) {
-            const parts = toolData.map(td => {
-               const resultData = td.result !== undefined ? td.result : (td.output || td);
-               return {
-                 type: 'tool-result',
-                 toolCallId: td.toolCallId || 'unknown',
-                 toolName: td.toolName || 'unknown',
-                 result: resultData,
-                 isError: td.isError || false
-               };
-            });
-            return { role: 'tool', content: parts };
-          } else {
-             const resultData = toolData?.result !== undefined ? toolData.result : (toolData?.output || toolData);
+          // Data from DB is { toolCallId, toolName, result }
+          if (toolData && toolData.toolCallId) {
+             const resultData = toolData.result !== undefined ? toolData.result : (toolData.output || toolData);
              return {
                role: 'tool',
                content: [{
                  type: 'tool-result',
-                 toolCallId: toolData?.toolCallId || m.toolCallId || 'unknown',
-                 toolName: toolData?.toolName || m.toolName || 'unknown',
+                 toolCallId: toolData.toolCallId,
+                 toolName: toolData.toolName || 'unknown',
                  result: resultData,
-                 isError: toolData?.isError || false
+                 isError: !!toolData.error || toolData.isError || false
                }]
              };
+          } else if (Array.isArray(toolData)) {
+            const parts = toolData.map(td => ({
+               type: 'tool-result',
+               toolCallId: td.toolCallId || 'unknown',
+               toolName: td.toolName || 'unknown',
+               result: td.result !== undefined ? td.result : (td.output || td),
+               isError: !!td.error || td.isError || false
+            }));
+            return { role: 'tool', content: parts };
           }
+          
+          return {
+              role: 'tool',
+              content: [{
+                 type: 'tool-result',
+                 toolCallId: m.toolCallId || 'unknown',
+                 toolName: m.toolName || 'unknown',
+                 result: String(m.content),
+                 isError: false
+              }]
+          };
         } catch (e) {
           return {
               role: 'tool',
@@ -263,30 +271,30 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
       }
 
       // Ensure tool result follows assistant with tool calls
-      if (m.role === 'tool') {
-        const hasToolCalls = lastMsg && lastMsg.role === 'assistant' && 
-                           Array.isArray(lastMsg.content) && 
-                           lastMsg.content.some((p: any) => p.type === 'tool-call');
-        
-        if (!hasToolCalls) {
-          console.warn(`[ENGINE] Dropping rogue tool result at turn ${i} (no preceding tool-call)`);
-          return;
-        }
+      // If we see an assistant message and then another message (not tool), 
+      // check if it had tool calls. If so, and we are skipping results, it's an error.
+      if (lastMsg && lastMsg.role === 'assistant' && m.role !== 'tool') {
+         const hasToolCalls = Array.isArray(lastMsg.content) && 
+                            lastMsg.content.some((p: any) => p.type === 'tool-call');
+         if (hasToolCalls) {
+            console.warn(`[ENGINE] Assistant turn ${i-1} has tool calls but next role is ${m.role}. Stripping tool calls to avoid SDK error.`);
+            lastMsg.content = lastMsg.content.filter((p: any) => p.type !== 'tool-call');
+         }
       }
 
       turnFixedMessages.push(m);
     });
 
-    // Additional check: Ensure all tool calls in the LAST assistant message have matching tool results
-    const lastMsg = turnFixedMessages[turnFixedMessages.length - 1];
-    if (lastMsg && lastMsg.role === 'assistant') {
-      const toolCalls = lastMsg.content.filter((p: any) => p.type === 'tool-call');
-      if (toolCalls.length > 0) {
-        // If the last message has tool calls, it MUST be followed by a tool message
-        // Since we are adding a new user message at the end, this situation shouldn't happen 
-        // unless the history is corrupted.
-        console.warn(`[ENGINE] Last message in history has tool calls but no results. This might cause SDK errors.`);
-      }
+    // If the VERY last message is an assistant message with tool calls, we must strip them
+    // because we are about to append a new 'user' message, and tool calls must be resolved first.
+    const finalLastMsg = turnFixedMessages[turnFixedMessages.length - 1];
+    if (finalLastMsg && finalLastMsg.role === 'assistant') {
+       const hasToolCalls = Array.isArray(finalLastMsg.content) && 
+                          finalLastMsg.content.some((p: any) => p.type === 'tool-call');
+       if (hasToolCalls) {
+          console.warn(`[ENGINE] Stripping dangling tool calls from last assistant message.`);
+          finalLastMsg.content = finalLastMsg.content.filter((p: any) => p.type !== 'tool-call');
+       }
     }
 
     console.log(`[ENGINE] Handshaking with ${turnFixedMessages.length} messages (Turn-Fixed)...`);
