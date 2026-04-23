@@ -31,7 +31,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "react-native-app-auth",
+        {
+          "android": {
+            "appAuthRedirectScheme": "com.grokdev"
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {},
