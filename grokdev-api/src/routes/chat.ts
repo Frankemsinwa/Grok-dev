@@ -259,7 +259,24 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
       if (!m) return;
       if (m.role === 'tool') {
         const lastMsg = turnFixedMessages[turnFixedMessages.length - 1];
-        if (!lastMsg || lastMsg.role !== 'assistant' || !lastMsg.toolCalls) {
+        
+        // If the last message was also a tool message, just append the content
+        if (lastMsg && lastMsg.role === 'tool') {
+          lastMsg.content = [...(Array.isArray(lastMsg.content) ? lastMsg.content : [lastMsg.content]), ...(Array.isArray(m.content) ? m.content : [m.content])];
+          return;
+        }
+
+        // Check if the preceding message is an assistant with tool-calls
+        let valid = false;
+        if (lastMsg && lastMsg.role === 'assistant') {
+          if (lastMsg.content && Array.isArray(lastMsg.content) && lastMsg.content.some((p: any) => p.type === 'tool-call')) {
+            valid = true;
+          } else if (lastMsg.toolCalls && lastMsg.toolCalls.length > 0) {
+            valid = true;
+          }
+        }
+
+        if (!valid) {
           console.warn(`[ENGINE] Dropping rogue tool result at turn ${i} (no preceding tool-call)`);
           return;
         }

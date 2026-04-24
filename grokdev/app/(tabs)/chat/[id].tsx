@@ -954,7 +954,8 @@ export default function ChatScreen() {
                   id: Date.now().toString() + Math.random(), 
                   role: 'tool' as const, 
                   content: JSON.stringify(tr.result || tr),
-                  toolCallId: tr.toolCallId // CRITICAL: Link result to its call
+                  toolCallId: tr.toolCallId, // CRITICAL: Link result to its call
+                  toolName: tr.toolName // Required by AI SDK
                });
             }
          }
