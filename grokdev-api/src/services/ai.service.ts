@@ -13,7 +13,7 @@ export class AIService {
     try {
       const result = await this.gh.getFileContent(owner, repo, path, branch);
       console.log(`[AI-TOOL] read_file SUCCESS | ${path} (${result.content.length} chars)`);
-      return { content: result.content, path };
+      return { content: result.content, path, sha: result.sha };
     } catch (error: any) {
       console.error(`[AI-TOOL] read_file FAILED | ${error.status || 'unknown'}: ${error.message}`);
       return { 
@@ -110,8 +110,8 @@ export class AIService {
         return { error: 'File not found. Use create_file instead.' };
       }
 
-      const result = await this.gh.commitFile(owner, repo, path, content, message, file.sha, branch);
-      return { success: true, sha: result.content?.sha };
+      // Instead of committing directly, we return success so the frontend "REVIEW CHANGES" button handles the commit
+      return { success: true, status: 'staged_for_review', message: 'Changes staged. Waiting for user to review and commit.' };
     } catch (error: any) {
       console.error(`[AI-TOOL] write_file FAILED | ${error.message}`);
       return { error: `Failed to write file: ${error.message}` };
@@ -121,8 +121,8 @@ export class AIService {
   async create_file(owner: string, repo: string, path: string, content: string, message: string = 'Create file via GrokDev', branch?: string) {
     console.log(`[AI-TOOL] create_file | owner="${owner}" repo="${repo}" path="${path}" branch="${branch}"`);
     try {
-      const result = await this.gh.commitFile(owner, repo, path, content, message, undefined, branch);
-      return { success: true, sha: result.content?.sha };
+      // Instead of committing directly, we return success so the frontend "REVIEW CHANGES" button handles the commit
+      return { success: true, status: 'staged_for_review', message: 'File creation staged. Waiting for user to review and commit.' };
     } catch (error: any) {
       console.error(`[AI-TOOL] create_file FAILED | ${error.message}`);
       return { error: `Failed to create file: ${error.message}` };
@@ -158,6 +158,41 @@ export class AIService {
       return { path, oldContent: result.content, newContent, sha: result.sha };
     } catch (error) {
       return { path, oldContent: '', newContent, sha: undefined };
+    }
+  }
+
+  async create_todos(conversationId: string, steps: string[]) {
+    console.log(`[AI-TOOL] create_todos | conversationId="${conversationId}" steps=${steps.length}`);
+    try {
+      const todos = await Promise.all(
+        steps.map(step => 
+          prisma.todo.create({
+            data: {
+              conversationId,
+              title: step,
+              status: 'pending'
+            }
+          })
+        )
+      );
+      return { success: true, count: todos.length, todos };
+    } catch (error: any) {
+      console.error(`[AI-TOOL] create_todos FAILED | ${error.message}`);
+      return { error: `Failed to create todos: ${error.message}` };
+    }
+  }
+
+  async update_todo_status(todoId: string, status: 'pending' | 'in-progress' | 'completed') {
+    console.log(`[AI-TOOL] update_todo_status | todoId="${todoId}" status="${status}"`);
+    try {
+      const todo = await prisma.todo.update({
+        where: { id: todoId },
+        data: { status }
+      });
+      return { success: true, todo };
+    } catch (error: any) {
+      console.error(`[AI-TOOL] update_todo_status FAILED | ${error.message}`);
+      return { error: `Failed to update todo status: ${error.message}` };
     }
   }
 }

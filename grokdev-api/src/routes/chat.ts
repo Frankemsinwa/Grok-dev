@@ -8,6 +8,7 @@ import { chatRateLimit } from '../middleware/rateLimit';
 import { prisma } from '../lib/prisma';
 import { AIService } from '../services/ai.service';
 import { decryptToken } from '../utils/encryption';
+import { RAGService } from '../services/rag.service';
 
 const router = Router();
 
@@ -68,6 +69,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
     }
 
     const aiService = new AIService(decryptToken(user.githubToken));
+    const ragService = new RAGService(decryptToken(user.githubToken), geminiApiKey);
     let currentConversationId = conversationId;
 
     // Determine owner/repo context and resolve valid repoId for database relation
@@ -329,6 +331,40 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         }),
         execute: async ({ query }: { query: string }) => aiService.search_code(owner, repo, query, branch),
       }),
+      semantic_search_code: tool({
+        description: 'Search the repository using semantic vector similarity (RAG). Use this to find concepts, patterns, or architecture logic across files.',
+        inputSchema: z.object({
+          query: z.string().describe('The natural language query to search for'),
+          limit: z.number().optional().describe('Maximum number of chunks to return (default 5)')
+        }),
+        execute: async ({ query, limit }: { query: string, limit?: number }) => {
+          if (!validatedRepoId) return { error: 'Repository ID not resolved, cannot perform RAG search.' };
+          try {
+            const results = await ragService.searchSimilarCode(validatedRepoId, query, limit);
+            return { matches: results };
+          } catch (e: any) {
+            return { error: `Semantic search failed: ${e.message}` };
+          }
+        }
+      }),
+      index_file_for_rag: tool({
+        description: 'Index a file into the RAG vector database so it can be semantically searched later.',
+        inputSchema: z.object({
+          path: z.string().describe('The path of the file to index')
+        }),
+        execute: async ({ path }: { path: string }) => {
+           if (!validatedRepoId) return { error: 'Repository ID not resolved, cannot index.' };
+           try {
+             const fileResult = await aiService.read_file(owner, repo, path, branch);
+             if (fileResult.error) return fileResult;
+             const sha = (fileResult as any).sha || new Date().toISOString();
+             const res = await ragService.indexFile(validatedRepoId, owner, repo, path, fileResult.content as string, sha);
+             return { result: `File indexed successfully. Status: ${res.status}` };
+           } catch (e: any) {
+             return { error: `Failed to index file: ${e.message}` };
+           }
+        }
+      }),
       write_file: tool({
         description: 'Write or update a file in the repository',
         inputSchema: z.object({
@@ -367,6 +403,25 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         execute: async ({ path, newContent }: { path: string, newContent: string }) =>
           aiService.get_file_diff(owner, repo, path, newContent, branch),
       }),
+      create_todos: tool({
+        description: 'Create a list of todo items for the current task. Use this at the start of a complex task to outline the steps.',
+        inputSchema: z.object({
+          steps: z.array(z.string()).describe('The list of steps to complete the task'),
+        }),
+        execute: async ({ steps }: { steps: string[] }) => {
+          if (!currentConversationId) return { error: 'Conversation ID not available.' };
+          return aiService.create_todos(currentConversationId, steps);
+        },
+      }),
+      update_todo: tool({
+        description: 'Update the status of a todo item as you progress through the task.',
+        inputSchema: z.object({
+          todoId: z.string().describe('The ID of the todo item to update'),
+          status: z.enum(['pending', 'in-progress', 'completed']).describe('The new status of the todo item'),
+        }),
+        execute: async ({ todoId, status }: { todoId: string, status: 'pending' | 'in-progress' | 'completed' }) =>
+          aiService.update_todo_status(todoId, status),
+      }),
     };
 
     let currentMessages: any[] = [...turnFixedMessages];
@@ -386,12 +441,14 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
 Your objective: Resolve the user's request completely by navigating and modifying the repository ${owner}/${repo} (${branch}).
 
 STRICT OPERATIONAL RULES:
-1. MULTI-STEP TURNS: If you need to read a directory, find a file, read it, and then modify it—do it ALL in sequence within this turn.
-2. THINKING & PLANNING: Before taking complex actions, briefly outline your plan.
-3. TOOL-FIRST: Never assume code exists. Use 'list_directory' and 'read_file' to verify the state of the repo before proposing or making changes.
-4. ERROR RECOVERY: If a tool fails (e.g., file not found), use 'search_code' or 'list_directory' to find the correct path. Do not give up.
-5. FINISH THE JOB: Your turn is not over until the objective is fully met.
-6. PRECISION: When writing files, preserve existing formatting and logic unless specifically asked to change it.`,
+1. TASK BREAKDOWN: When you receive a complex or multi-step task, start by using 'create_todos' to outline the plan. This helps the user track your progress.
+2. PROGRESS TRACKING: Update todo statuses using 'update_todo' as you complete each step.
+3. MULTI-STEP TURNS: If you need to read a directory, find a file, read it, and then modify it—do it ALL in sequence within this turn.
+4. THINKING & PLANNING: Before taking complex actions, briefly outline your plan.
+5. TOOL-FIRST: Never assume code exists. Use 'list_directory' and 'read_file' to verify the state of the repo before proposing or making changes.
+6. ERROR RECOVERY: If a tool fails (e.g., file not found), use 'search_code' or 'list_directory' to find the correct path. Do not give up.
+7. FINISH THE JOB: Your turn is not over until the objective is fully met.
+8. PRECISION: When writing files, preserve existing formatting and logic unless specifically asked to change it.`,
         messages: currentMessages as ModelMessage[],
         tools: agentTools,
       });
@@ -559,6 +616,23 @@ router.get('/conversations/:id', authMiddleware, async (req: AuthRequest, res: E
     res.json(conversation);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching conversation details' });
+  }
+});
+
+router.get('/conversations/:id/todos', authMiddleware, async (req: AuthRequest, res: ExpressResponse) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const todos = await prisma.todo.findMany({
+      where: { 
+        conversationId: req.params.id as string,
+        conversation: { userId: req.user.id }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+    res.json(todos);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching todos' });
   }
 });
 

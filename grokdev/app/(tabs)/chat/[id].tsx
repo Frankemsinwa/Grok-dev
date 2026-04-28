@@ -24,6 +24,7 @@ import Animated, {
   withTiming,
   Easing
 } from 'react-native-reanimated';
+import { TodoModal, type Todo } from '../../../components/TodoModal';
 
 const { width } = Dimensions.get('window');
 import { API_BASE_URL } from '../../../constants/Config';
@@ -689,6 +690,10 @@ export default function ChatScreen() {
   const [activeMotivation, setActiveMotivation] = useState('Syncing mission parameters...');
   const [manualLoading, setManualLoading] = useState(false);
   const [isNavigating, setIsNavigating] = useState(true);
+  
+  // Todo State
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [showTodoModal, setShowTodoModal] = useState(false);
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -732,9 +737,24 @@ export default function ChatScreen() {
         if (data.messages && data.messages.length > 0) {
           setMessages(data.messages);
         }
+        fetchTodos(convId);
       }
     } catch (e) {
       console.warn('Failed to load conversation', e);
+    }
+  };
+
+  const fetchTodos = async (convId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/conversations/${convId}/todos`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTodos(data);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch todos', e);
     }
   };
 
@@ -961,6 +981,10 @@ export default function ChatScreen() {
          }
          return newArr;
       });
+
+      if (data.conversationId || conversationId) {
+        fetchTodos(data.conversationId || conversationId);
+      }
     } catch (e: any) {
       console.error('Manual link failed', e);
       Alert.alert('Console Sync Error', e.message || 'The neural link failed to stabilize.');
@@ -1033,6 +1057,18 @@ export default function ChatScreen() {
                 {selectedModel.name}
               </Text>
             </TouchableOpacity>
+
+            {todos.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => setShowTodoModal(true)} 
+                style={[styles.headerButton, { backgroundColor: `${accentColor}12`, borderColor: `${accentColor}33`, marginRight: 6 }]}
+              >
+                <Ionicons name="list" size={18} color={accentColor} />
+                <View style={[styles.todoBadge, { backgroundColor: accentColor }]}>
+                  <Text style={styles.todoBadgeText}>{todos.filter(t => t.status === 'completed').length}/{todos.length}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity onPress={() => setShowBranchModal(true)} style={[styles.refreshBtn, { borderColor: 'rgba(255, 255, 255, 0.2)', marginRight: 6 }]}>
                 <Ionicons name="git-branch" size={18} color="#FFFFFF" />
@@ -1195,6 +1231,13 @@ export default function ChatScreen() {
           visible={showGeminiKeyModal}
           onClose={() => setShowGeminiKeyModal(false)}
           onSave={handleSaveGeminiKey}
+        />
+
+        <TodoModal 
+          visible={showTodoModal}
+          onClose={() => setShowTodoModal(false)}
+          todos={todos}
+          providerColor={accentColor}
         />
 
       </SafeAreaView>
