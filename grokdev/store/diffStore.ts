@@ -11,7 +11,9 @@ interface DiffProposal {
 interface DiffState {
   currentProposal: DiffProposal | null;
   proposals: DiffProposal[];
+  activeBranch: string | null; // AI-created feature branch for this conversation
   setProposal: (proposal: DiffProposal) => void;
+  setActiveBranch: (branch: string | null) => void;
   clearProposals: () => void;
   acceptProposal: (path: string) => void;
   rejectProposal: (path: string) => void;
@@ -20,11 +22,13 @@ interface DiffState {
 export const useDiffStore = create<DiffState>((set) => ({
   currentProposal: null,
   proposals: [],
+  activeBranch: null,
   setProposal: (proposal) => set((state) => ({ 
     currentProposal: proposal,
     proposals: [...state.proposals.filter(p => p.path !== proposal.path), { ...proposal, accepted: false }]
   })),
-  clearProposals: () => set({ currentProposal: null, proposals: [] }),
+  setActiveBranch: (branch) => set({ activeBranch: branch }),
+  clearProposals: () => set({ currentProposal: null, proposals: [], activeBranch: null }),
   acceptProposal: (path) => set((state) => ({ 
     proposals: state.proposals.map(p => p.path === path ? { ...p, accepted: true } : p)
   })),

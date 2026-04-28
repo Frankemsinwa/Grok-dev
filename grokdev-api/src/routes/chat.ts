@@ -121,6 +121,11 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
       }
     }
 
+    // Send conversationId header early so frontend can start todo polling
+    res.setHeader('X-Conversation-Id', currentConversationId);
+    res.setHeader('Content-Type', 'application/json');
+    res.flushHeaders(); // Push headers to client immediately, before agent loop
+
     // Save user message in the matrix
     const userMessage = messages[messages.length - 1];
     await prisma.message.create({
@@ -590,19 +595,25 @@ STRICT OPERATIONAL RULES:
       }
     }
 
-    res.json({
+    res.end(JSON.stringify({
       text: finalProcessedText || 'Analysis complete.',
       conversationId: currentConversationId,
+      activeBranch, // Return the active branch (either existing or newly created)
       toolCalls: allToolCalls,
       toolResults: allToolResults,
-    });
+    }));
   } catch (error: any) {
     console.error('Chat stream error:', error);
     // Give a useful error message when Gemini key is invalid
     const msg = error.message?.includes('API key')
       ? 'Invalid Gemini API key. Please check your key in settings.'
       : error.message || 'Error streaming from AI';
-    res.status(500).json({ error: msg });
+    // Headers may already be flushed, so use end() instead of json()
+    if (!res.headersSent) {
+      res.status(500).json({ error: msg });
+    } else {
+      res.end(JSON.stringify({ error: msg }));
+    }
   }
 });
 

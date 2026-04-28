@@ -10,10 +10,11 @@ import * as diff from 'diff';
 import { API_BASE_URL } from '../constants/Config';
 
 export default function DiffViewerScreen() {
-  const { proposals, acceptProposal, rejectProposal, clearProposals } = useDiffStore();
+  const { proposals, acceptProposal, rejectProposal, clearProposals, activeBranch } = useDiffStore();
   const { token } = useAuthStore();
   const { currentRepo, currentBranch } = useRepoStore();
   const router = useRouter();
+  const targetBranch = activeBranch || currentBranch;
   const [loading, setLoading] = React.useState(false);
   const [isReady, setIsReady] = React.useState(false);
 
@@ -49,7 +50,7 @@ export default function DiffViewerScreen() {
 
     Alert.alert(
       'Push Changes',
-      `You are about to push ${acceptedProposals.length} file(s) to branch "${currentBranch}". Proceed?`,
+      `You are about to push ${acceptedProposals.length} file(s) to branch "${targetBranch}"${activeBranch ? ' (AI feature branch)' : ''}. Proceed?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -70,7 +71,7 @@ export default function DiffViewerScreen() {
                     content: proposal.newContent,
                     message: `Update ${proposal.path} via GrokDev`,
                     sha: proposal.sha,
-                    branch: currentBranch
+                    branch: targetBranch
                   }),
                 });
                 

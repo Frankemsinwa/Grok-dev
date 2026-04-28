@@ -43,7 +43,7 @@ const GlassBox = ({ children, style, intensity = 25 }: { children: React.ReactNo
     </View>
 );
 
-const MessageBubble = React.memo(({ item, isUser, messages, setProposal, router, providerLabel, providerColor, currentRepo, currentBranch, token }: any) => {
+const MessageBubble = React.memo(({ item, isUser, messages, setProposal, setActiveBranch, activeBranch, router, providerLabel, providerColor, currentRepo, currentBranch, token }: any) => {
     const hasToolCalls = item.toolCalls && item.toolCalls.length > 0;
     const [showCopied, setShowCopied] = useState(false);
 
@@ -139,6 +139,7 @@ const MessageBubble = React.memo(({ item, isUser, messages, setProposal, router,
                             } catch (e) {}
                         }
                         setProposal(data);
+                        setActiveBranch(activeBranch); // Sync the AI branch to the diff store
                         router.push('/diff');
                       } else {
                         Alert.alert(
@@ -175,7 +176,8 @@ const MessageBubble = React.memo(({ item, isUser, messages, setProposal, router,
                           sha
                         });
                         setProposal({ path, oldContent, newContent, sha });
-                      router.push('/diff');
+                        setActiveBranch(activeBranch);
+                        router.push('/diff');
                     }
                   } catch (e) {
                     console.error('Diff Button Error:', e);
@@ -676,7 +678,7 @@ export default function ChatScreen() {
   const { token } = useAuthStore();
   const { currentRepo, currentBranch, setCurrentBranch, setCurrentRepo } = useRepoStore();
   const { selectedModel, geminiApiKey, loadGeminiApiKey, setSelectedModel, setGeminiApiKey, isGeminiKeyLoaded } = useModelStore();
-  const { setProposal } = useDiffStore();
+  const { setProposal, setActiveBranch } = useDiffStore();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
   const { id } = useLocalSearchParams();
@@ -694,6 +696,7 @@ export default function ChatScreen() {
   // Todo State
   const [todos, setTodos] = useState<Todo[]>([]);
   const [showTodoModal, setShowTodoModal] = useState(false);
+  const [activeBranch, setActiveBranchState] = useState<string | null>(null);
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -731,8 +734,9 @@ export default function ChatScreen() {
       if (res.ok) {
         const data = await res.json();
         setConversationId(convId);
-        if (data.repo) {
-          setCurrentRepo(data.repo);
+        if (data.activeBranch) {
+          setActiveBranchState(data.activeBranch);
+          setActiveBranch(data.activeBranch);
         }
         if (data.messages && data.messages.length > 0) {
           setMessages(data.messages);
@@ -757,6 +761,22 @@ export default function ChatScreen() {
       console.warn('Failed to fetch todos', e);
     }
   };
+
+  // Real-time todo polling while agent is working
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    const activeConvId = conversationId;
+    if (manualLoading && activeConvId) {
+      // Poll immediately once, then every 3 seconds
+      fetchTodos(activeConvId);
+      interval = setInterval(() => {
+        fetchTodos(activeConvId);
+      }, 3000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [manualLoading, conversationId]);
 
   useEffect(() => {
     if (currentRepo && token) {
@@ -953,11 +973,18 @@ export default function ChatScreen() {
         throw new Error(errorData.error || `Engine rejected request (${response.status})`);
       }
 
+      // Read conversationId from header IMMEDIATELY (headers arrive before body)
+      // This triggers the polling useEffect while the agent is still working
+      const headerConvId = response.headers.get('x-conversation-id');
+      if (headerConvId && !conversationId) {
+        setConversationId(headerConvId);
+      }
+
       // Backend now returns JSON: { text, conversationId, toolCalls, toolResults }
       const data = await response.json();
       const fullResponse = data.text || 'The AI processed your request but returned no visible text.';
       
-      if (data.conversationId && !conversationId) {
+      if (data.conversationId && !conversationId && !headerConvId) {
         setConversationId(data.conversationId);
       }
       
@@ -982,6 +1009,11 @@ export default function ChatScreen() {
          return newArr;
       });
 
+      if (data.activeBranch) {
+        setActiveBranchState(data.activeBranch);
+        setActiveBranch(data.activeBranch);
+      }
+      
       if (data.conversationId || conversationId) {
         fetchTodos(data.conversationId || conversationId);
       }
@@ -1097,7 +1129,8 @@ export default function ChatScreen() {
                         isUser={item.role === 'user'} 
                         messages={messages} 
                         setProposal={setProposal} 
-                        router={router}
+                        setActiveBranch={setActiveBranch}
+                        activeBranch={activeBranch}
                         providerLabel={providerLabel}
                         providerColor={accentColor}
                         currentRepo={currentRepo}
