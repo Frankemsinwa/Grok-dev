@@ -175,7 +175,9 @@ export class AIService {
           })
         )
       );
-      return { success: true, count: todos.length, todos };
+      // Sanitize: Convert dates to strings for AI SDK compatibility
+      const sanitizedTodos = JSON.parse(JSON.stringify(todos));
+      return { success: true, count: todos.length, todos: sanitizedTodos };
     } catch (error: any) {
       console.error(`[AI-TOOL] create_todos FAILED | ${error.message}`);
       return { error: `Failed to create todos: ${error.message}` };
@@ -189,7 +191,9 @@ export class AIService {
         where: { id: todoId },
         data: { status }
       });
-      return { success: true, todo };
+      // Sanitize: Convert dates to strings for AI SDK compatibility
+      const sanitizedTodo = JSON.parse(JSON.stringify(todo));
+      return { success: true, todo: sanitizedTodo };
     } catch (error: any) {
       console.error(`[AI-TOOL] update_todo_status FAILED | ${error.message}`);
       return { error: `Failed to update todo status: ${error.message}` };
