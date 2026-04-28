@@ -161,9 +161,44 @@ export class AIService {
     }
   }
 
+  async create_branch(owner: string, repo: string, baseBranch: string, newBranch: string) {
+    console.log(`[AI-TOOL] create_branch | owner="${owner}" repo="${repo}" base="${baseBranch}" new="${newBranch}"`);
+    try {
+      // 1. Get the SHA of the base branch
+      const { data: ref } = await this.gh.octokit.git.getRef({
+        owner,
+        repo,
+        ref: `heads/${baseBranch}`,
+      });
+      const sha = ref.object.sha;
+
+      // 2. Create the new branch reference
+      await this.gh.octokit.git.createRef({
+        owner,
+        repo,
+        ref: `refs/heads/${newBranch}`,
+        sha,
+      });
+
+      return { success: true, branch: newBranch, sha };
+    } catch (error: any) {
+      console.error(`[AI-TOOL] create_branch FAILED | ${error.message}`);
+      // If branch already exists, we might still want to return success or a specific message
+      if (error.message.includes('already exists')) {
+        return { success: true, branch: newBranch, message: 'Branch already exists' };
+      }
+      return { error: `Failed to create branch: ${error.message}` };
+    }
+  }
+
   async create_todos(conversationId: string, steps: string[]) {
     console.log(`[AI-TOOL] create_todos | conversationId="${conversationId}" steps=${steps.length}`);
     try {
+      // Clear existing todos for this conversation to prevent duplication on re-planning
+      await prisma.todo.deleteMany({
+        where: { conversationId }
+      });
+
       const todos = await Promise.all(
         steps.map(step => 
           prisma.todo.create({

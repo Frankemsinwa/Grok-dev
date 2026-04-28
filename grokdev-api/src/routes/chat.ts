@@ -96,6 +96,8 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
       }
     }
 
+    let activeBranch: string | null = null;
+
     if (!currentConversationId) {
       // Find the first user message to use as the title
       const firstUserMsg = messages.find(m => m.role === 'user')?.content || 'New Session';
@@ -110,6 +112,13 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         },
       });
       currentConversationId = newConversation.id;
+    } else {
+      const existingConv = await prisma.conversation.findUnique({
+        where: { id: currentConversationId }
+      });
+      if (existingConv) {
+        activeBranch = existingConv.activeBranch;
+      }
     }
 
     // Save user message in the matrix
@@ -308,28 +317,28 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         inputSchema: z.object({
           path: z.string().describe('The path of the file to read'),
         }),
-        execute: async ({ path }: { path: string }) => aiService.read_file(owner, repo, path, branch),
+        execute: async ({ path }: { path: string }) => aiService.read_file(owner, repo, path, activeBranch || branch),
       }),
       list_directory: tool({
         description: 'List files and directories in the repository',
         inputSchema: z.object({
           path: z.string().optional().describe('The directory path to list'),
         }),
-        execute: async ({ path }: { path?: string }) => aiService.list_directory(owner, repo, path || '', branch),
+        execute: async ({ path }: { path?: string }) => aiService.list_directory(owner, repo, path || '', activeBranch || branch),
       }),
       search_files: tool({
         description: 'Search for files by name in the repository',
         inputSchema: z.object({
           query: z.string().describe('The filename or path fragment to search for'),
         }),
-        execute: async ({ query }: { query: string }) => aiService.search_files(owner, repo, query, branch),
+        execute: async ({ query }: { query: string }) => aiService.search_files(owner, repo, query, activeBranch || branch),
       }),
       search_code: tool({
         description: 'Search for a string in the repository code (search by path)',
         inputSchema: z.object({
           query: z.string().describe('The search query'),
         }),
-        execute: async ({ query }: { query: string }) => aiService.search_code(owner, repo, query, branch),
+        execute: async ({ query }: { query: string }) => aiService.search_code(owner, repo, query, activeBranch || branch),
       }),
       semantic_search_code: tool({
         description: 'Search the repository using semantic vector similarity (RAG). Use this to find concepts, patterns, or architecture logic across files.',
@@ -355,7 +364,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         execute: async ({ path }: { path: string }) => {
            if (!validatedRepoId) return { error: 'Repository ID not resolved, cannot index.' };
            try {
-             const fileResult = await aiService.read_file(owner, repo, path, branch);
+             const fileResult = await aiService.read_file(owner, repo, path, activeBranch || branch);
              if (fileResult.error) return fileResult;
              const sha = (fileResult as any).sha || new Date().toISOString();
              const res = await ragService.indexFile(validatedRepoId, owner, repo, path, fileResult.content as string, sha);
@@ -373,7 +382,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
           message: z.string().optional().describe('The commit message'),
         }),
         execute: async ({ path, content, message }: { path: string, content: string, message?: string }) =>
-          aiService.write_file(owner, repo, path, content, message, branch),
+          aiService.write_file(owner, repo, path, content, message, activeBranch || branch),
       }),
       create_file: tool({
         description: 'Create a new file in the repository',
@@ -383,7 +392,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
           message: z.string().optional().describe('The commit message'),
         }),
         execute: async ({ path, content, message }: { path: string, content: string, message?: string }) =>
-          aiService.create_file(owner, repo, path, content, message, branch),
+          aiService.create_file(owner, repo, path, content, message, activeBranch || branch),
       }),
       delete_file: tool({
         description: 'Delete a file from the repository',
@@ -392,7 +401,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
           message: z.string().optional().describe('The commit message'),
         }),
         execute: async ({ path, message }: { path: string, message?: string }) =>
-          aiService.delete_file(owner, repo, path, message, branch),
+          aiService.delete_file(owner, repo, path, message, activeBranch || branch),
       }),
       get_file_diff: tool({
         description: 'Get a diff between the current file and proposed changes',
@@ -401,7 +410,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
           newContent: z.string().describe('The proposed new content'),
         }),
         execute: async ({ path, newContent }: { path: string, newContent: string }) =>
-          aiService.get_file_diff(owner, repo, path, newContent, branch),
+          aiService.get_file_diff(owner, repo, path, newContent, activeBranch || branch),
       }),
       create_todos: tool({
         description: 'Create a list of todo items for the current task. Use this at the start of a complex task to outline the steps.',
@@ -422,6 +431,24 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
         execute: async ({ todoId, status }: { todoId: string, status: 'pending' | 'in-progress' | 'completed' }) =>
           aiService.update_todo_status(todoId, status),
       }),
+      create_branch: tool({
+        description: 'Create a new feature branch for the current task.',
+        inputSchema: z.object({
+          newBranch: z.string().describe('The name of the new branch to create'),
+        }),
+        execute: async ({ newBranch }: { newBranch: string }) => {
+          const result = await aiService.create_branch(owner, repo, activeBranch || branch, newBranch);
+          if (result.success) {
+            activeBranch = newBranch;
+            // Save the active branch to the conversation in the database
+            await prisma.conversation.update({
+              where: { id: currentConversationId },
+              data: { activeBranch: newBranch }
+            });
+          }
+          return result;
+        },
+      }),
     };
 
     let currentMessages: any[] = [...turnFixedMessages];
@@ -441,14 +468,15 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
 Your objective: Resolve the user's request completely by navigating and modifying the repository ${owner}/${repo} (${branch}).
 
 STRICT OPERATIONAL RULES:
-1. TASK BREAKDOWN: When you receive a complex or multi-step task, start by using 'create_todos' to outline the plan. This helps the user track your progress.
-2. PROGRESS TRACKING: Update todo statuses using 'update_todo' as you complete each step.
-3. MULTI-STEP TURNS: If you need to read a directory, find a file, read it, and then modify it—do it ALL in sequence within this turn.
-4. THINKING & PLANNING: Before taking complex actions, briefly outline your plan.
-5. TOOL-FIRST: Never assume code exists. Use 'list_directory' and 'read_file' to verify the state of the repo before proposing or making changes.
-6. ERROR RECOVERY: If a tool fails (e.g., file not found), use 'search_code' or 'list_directory' to find the correct path. Do not give up.
-7. FINISH THE JOB: Your turn is not over until the objective is fully met.
-8. PRECISION: When writing files, preserve existing formatting and logic unless specifically asked to change it.`,
+1. FEATURE BRANCHING: Before making any changes to the repository, you MUST create a new feature branch using 'create_branch' if you are not already in one (check the current context). Name the branch descriptively (e.g., 'feature/task-name' or 'fix/bug-name').
+2. TASK BREAKDOWN: After creating the branch, use 'create_todos' to outline the plan. This helps the user track your progress. Only call 'create_todos' ONCE at the start of a task.
+3. PROGRESS TRACKING: Update todo statuses using 'update_todo' as you complete each step. NEVER create new todos for steps you've already defined; just update their status.
+4. MULTI-STEP TURNS: If you need to read a directory, find a file, read it, and then modify it—do it ALL in sequence within this turn.
+5. THINKING & PLANNING: Before taking complex actions, briefly outline your plan.
+6. TOOL-FIRST: Never assume code exists. Use 'list_directory' and 'read_file' to verify the state of the repo before proposing or making changes.
+7. ERROR RECOVERY: If a tool fails (e.g., file not found), use 'search_code' or 'list_directory' to find the correct path. Do not give up.
+8. FINISH THE JOB: Your turn is not over until the objective is fully met.
+9. PRECISION: When writing files, preserve existing formatting and logic unless specifically asked to change it.`,
         messages: currentMessages as ModelMessage[],
         tools: agentTools,
       });

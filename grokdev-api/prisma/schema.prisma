@@ -41,6 +41,7 @@ model Conversation {
   title     String
   model     String
   createdAt DateTime  @default(now())
+  activeBranch String? // The feature branch for this conversation
   messages  Message[]
   todos     Todo[]
 }
