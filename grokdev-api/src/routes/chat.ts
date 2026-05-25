@@ -461,7 +461,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
     let allToolResults: any[] = [];
     let finalProcessedText = '';
     let stepCount = 0;
-    const maxSteps = 20;
+    const maxSteps = 10; // Reduced from 20 to prevent Vercel 300s timeouts
 
     // MANUAL AGENT LOOP: Since the local AI SDK version lacks native 'maxSteps'
     while (stepCount < maxSteps) {
@@ -478,10 +478,11 @@ STRICT OPERATIONAL RULES:
 3. PROGRESS TRACKING: Update todo statuses using 'update_todo' as you complete each step. NEVER create new todos for steps you've already defined; just update their status.
 4. MULTI-STEP TURNS: If you need to read a directory, find a file, read it, and then modify it—do it ALL in sequence within this turn.
 5. THINKING & PLANNING: Before taking complex actions, briefly outline your plan.
-6. TOOL-FIRST: Never assume code exists. Use 'list_directory' and 'read_file' to verify the state of the repo before proposing or making changes.
-7. ERROR RECOVERY: If a tool fails (e.g., file not found), use 'search_code' or 'list_directory' to find the correct path. Do not give up.
-8. FINISH THE JOB: Your turn is not over until the objective is fully met.
-9. PRECISION: When writing files, preserve existing formatting and logic unless specifically asked to change it.`,
+6. TURN BUDGET: You have a limit of 10 actions per turn. If you cannot finish the task within this limit, complete as much as possible, update the relevant todos, and tell the user you need to continue in the next turn.
+7. TOOL-FIRST: Never assume code exists. Use 'list_directory' and 'read_file' to verify the state of the repo before proposing or making changes.
+8. ERROR RECOVERY: If a tool fails (e.g., file not found), use 'search_code' or 'list_directory' to find the correct path. Do not give up.
+9. FINISH THE JOB: Your turn is not over until the objective is fully met.
+10. PRECISION: When writing files, preserve existing formatting and logic unless specifically asked to change it.`,
         messages: currentMessages as ModelMessage[],
         tools: agentTools,
       });
@@ -566,7 +567,11 @@ STRICT OPERATIONAL RULES:
       }
     }
 
-    console.log(`[CHAT-FINAL] AI finished in ${stepCount + 1} steps. Response length: ${finalProcessedText.length}`);
+    if (stepCount >= maxSteps && !finalProcessedText) {
+      finalProcessedText = "The Turn Budget (10 actions) has been reached. Please check the current state and type 'continue' if more work is needed.";
+    }
+
+    console.log(`[CHAT-FINAL] AI finished in ${stepCount} steps. Response length: ${finalProcessedText.length}`);
 
     // Save assistant message to database
     await prisma.message.create({

@@ -1136,6 +1136,7 @@ export default function ChatScreen() {
                         currentRepo={currentRepo}
                         currentBranch={currentBranch}
                         token={token}
+                        router={router}
                     />
               )}
               contentContainerStyle={{ padding: 20, paddingTop: 10, paddingBottom: 150 }}

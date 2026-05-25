@@ -12,6 +12,7 @@ import reposRoutes from './routes/repos';
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1); // Trust Vercel's proxy for rate limiting
 const PORT = Number(process.env.PORT) || 5000;
 
 app.use(cors());
