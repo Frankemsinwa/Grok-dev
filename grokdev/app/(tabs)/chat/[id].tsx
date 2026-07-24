@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, SafeAreaView, Alert, StyleSheet, Dimensions, Modal, Image, InteractionManager } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, StyleSheet, Dimensions, Modal, Image, InteractionManager } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 const expoFetch = fetch;
 import Markdown from 'react-native-markdown-display';
 import { useAuthStore } from '../../../store/authStore';
@@ -439,6 +440,226 @@ const geminiStyles = StyleSheet.create({
   },
 });
 
+// ─── Grok API Key Prompt ───────────────────────────────────────────────────
+function GrokKeyModal({
+  visible,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSave: (key: string) => void;
+}) {
+  const [key, setKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={grokStyles.overlay}>
+        <Animated.View entering={FadeInDown.springify()} style={grokStyles.sheet}>
+          {/* Header */}
+          <View style={grokStyles.header}>
+            <View style={grokStyles.headerLeft}>
+              <View style={grokStyles.grokIcon}>
+                <Image source={require('../../../assets/grok.jpeg')} style={{ width: 24, height: 24, borderRadius: 12 }} resizeMode="cover" />
+              </View>
+              <View>
+                <Text style={grokStyles.title}>GROK UPLINK</Text>
+                <Text style={grokStyles.subtitle}>Connect your xAI API key</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={grokStyles.closeBtn}>
+              <Ionicons name="close" size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Info */}
+          <View style={grokStyles.infoBox}>
+            <Ionicons name="shield-checkmark" size={16} color="#4ade80" />
+            <Text style={grokStyles.infoText}>
+              Your API key is stored locally on this device only. It is never sent to our servers or stored in any database.
+            </Text>
+          </View>
+
+          {/* Key Input */}
+          <Text style={grokStyles.label}>xAI API KEY</Text>
+          <View style={grokStyles.inputRow}>
+            <TextInput
+              style={grokStyles.input}
+              value={key}
+              onChangeText={setKey}
+              placeholder="xai-..."
+              placeholderTextColor="#334155"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={!showKey}
+            />
+            <TouchableOpacity
+              onPress={() => setShowKey(!showKey)}
+              style={grokStyles.eyeBtn}
+            >
+              <Ionicons name={showKey ? 'eye-off' : 'eye'} size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Help Link */}
+          <Text style={grokStyles.helpText}>
+            Get your API key from{' '}
+            <Text style={{ color: '#22D3EE', fontWeight: '700' }}>
+              console.x.ai
+            </Text>
+          </Text>
+
+          {/* Save Button */}
+          <TouchableOpacity
+            onPress={() => {
+              if (key.trim().length < 10) {
+                Alert.alert('Invalid Key', 'Please enter a valid xAI API key.');
+                return;
+              }
+              onSave(key.trim());
+              setKey('');
+            }}
+            disabled={key.trim().length < 10}
+            style={[
+              grokStyles.saveBtn,
+              key.trim().length < 10 && { opacity: 0.4 },
+            ]}
+          >
+            <Ionicons name="checkmark-circle" size={18} color="#fff" />
+            <Text style={grokStyles.saveBtnText}>SAVE & ACTIVATE</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+const grokStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  sheet: {
+    backgroundColor: '#0f172a',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 211, 238, 0.25)',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  grokIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(34, 211, 238, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(34, 211, 238, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+  },
+  subtitle: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1e293b',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: 'rgba(74, 222, 128, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.15)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+  },
+  infoText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    lineHeight: 18,
+    flex: 1,
+  },
+  label: {
+    color: '#64748b',
+    fontSize: 11,
+    letterSpacing: 1.5,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    marginBottom: 10,
+  },
+  input: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 15,
+    padding: 14,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  eyeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  helpText: {
+    color: '#475569',
+    fontSize: 12,
+    marginBottom: 20,
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#22D3EE',
+    borderRadius: 14,
+    padding: 16,
+    shadowColor: '#22D3EE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  saveBtnText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1.2,
+  },
+});
+
 // ─── Model Switcher Modal ────────────────────────────────────────────────────
 function ModelSwitcherModal({
   visible,
@@ -446,14 +667,18 @@ function ModelSwitcherModal({
   selectedModel,
   onSelectModel,
   geminiApiKey,
+  grokApiKey,
   onRequestGeminiKey,
+  onRequestGrokKey,
 }: {
   visible: boolean;
   onClose: () => void;
   selectedModel: ModelOption;
   onSelectModel: (model: ModelOption) => void;
   geminiApiKey: string | null;
+  grokApiKey: string | null;
   onRequestGeminiKey: () => void;
+  onRequestGrokKey: () => void;
 }) {
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -473,16 +698,23 @@ function ModelSwitcherModal({
           {/* Model Options */}
           {MODEL_OPTIONS.map((model) => {
             const isActive = selectedModel.id === model.id;
-            const needsKey = model.provider === 'gemini' && !geminiApiKey;
+            const needsGeminiKey = model.provider === 'gemini' && !geminiApiKey;
+            const needsGrokKey = model.provider === 'grok' && !grokApiKey;
+            const needsKey = needsGeminiKey || needsGrokKey;
 
             return (
               <TouchableOpacity
                 key={model.id}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  if (needsKey) {
+                  if (needsGeminiKey) {
                     onClose();
                     setTimeout(() => onRequestGeminiKey(), 300);
+                    return;
+                  }
+                  if (needsGrokKey) {
+                    onClose();
+                    setTimeout(() => onRequestGrokKey(), 300);
                     return;
                   }
                   onSelectModel(model);
@@ -522,6 +754,38 @@ function ModelSwitcherModal({
               </TouchableOpacity>
             );
           })}
+
+          {/* Grok Key Management */}
+          {grokApiKey && (
+            <View style={switcherStyles.keyStatusRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="shield-checkmark" size={14} color="#4ade80" />
+                <Text style={switcherStyles.keyStatusText}>Grok key saved on device</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    'Remove Grok Key?',
+                    'This will delete the API key from this device.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Remove',
+                        style: 'destructive',
+                        onPress: () => {
+                          const { clearGrokApiKey } = useModelStore.getState();
+                          clearGrokApiKey();
+                          onClose();
+                        },
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Text style={switcherStyles.removeKeyText}>REMOVE</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Gemini Key Management */}
           {geminiApiKey && (
@@ -677,7 +941,7 @@ const switcherStyles = StyleSheet.create({
 export default function ChatScreen() {
   const { token } = useAuthStore();
   const { currentRepo, currentBranch, setCurrentBranch, setCurrentRepo } = useRepoStore();
-  const { selectedModel, geminiApiKey, loadGeminiApiKey, setSelectedModel, setGeminiApiKey, isGeminiKeyLoaded } = useModelStore();
+  const { selectedModel, geminiApiKey, grokApiKey, loadApiKeys, setSelectedModel, setGeminiApiKey, setGrokApiKey, isKeysLoaded } = useModelStore();
   const { setProposal, setActiveBranch } = useDiffStore();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
@@ -688,6 +952,7 @@ export default function ChatScreen() {
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [showModelSwitcher, setShowModelSwitcher] = useState(false);
   const [showGeminiKeyModal, setShowGeminiKeyModal] = useState(false);
+  const [showGrokKeyModal, setShowGrokKeyModal] = useState(false);
   const [activeStatus, setActiveStatus] = useState('NEURAL PROCESSING...');
   const [activeMotivation, setActiveMotivation] = useState('Syncing mission parameters...');
   const [manualLoading, setManualLoading] = useState(false);
@@ -705,10 +970,10 @@ export default function ChatScreen() {
     return () => task.cancel();
   }, []);
 
-  // Load Gemini key from secure storage on mount
+  // Load keys from secure storage on mount
   useEffect(() => {
-    if (!isGeminiKeyLoaded) {
-      loadGeminiApiKey();
+    if (!isKeysLoaded) {
+      loadApiKeys();
     }
   }, []);
 
@@ -921,8 +1186,17 @@ export default function ChatScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
     // Auto-switch to Gemini Flash after saving key
-    const geminiFlash = MODEL_OPTIONS.find(m => m.id === 'gemini-2.0-flash')!;
+    const geminiFlash = MODEL_OPTIONS.find(m => m.id === 'gemini-2.5-flash')!;
     handleModelSwitch(geminiFlash);
+  };
+
+  const handleSaveGrokKey = (key: string) => {
+    setGrokApiKey(key);
+    setShowGrokKeyModal(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    const grokModel = MODEL_OPTIONS.find(m => m.id === 'grok-beta')!;
+    handleModelSwitch(grokModel);
   };
 
   // FAIL-SAFE: Manual Engine Link for environments where SDK hooks are partially stripped
@@ -965,6 +1239,7 @@ export default function ChatScreen() {
           model: selectedModel.id,
           provider: selectedModel.provider,
           geminiApiKey: selectedModel.provider === 'gemini' ? geminiApiKey : undefined,
+          grokApiKey: selectedModel.provider === 'grok' ? grokApiKey : undefined,
         }),
       });
 
@@ -1055,59 +1330,55 @@ export default function ChatScreen() {
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
           style={{ flex: 1 }}
         >
-          {/* Enhanced Mission Header */}
+          {/* Compact Mission Header */}
           <GlassBox style={[styles.header, { borderColor: `${accentColor}22` }]} intensity={40}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity 
-                onPress={() => router.replace('/chat')} 
-                style={{ paddingRight: 10 }}
-              >
-                <Ionicons name="chevron-back" size={24} color="#94a3b8" />
-              </TouchableOpacity>
-              <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={[styles.livePulse, { backgroundColor: accentColor, shadowColor: accentColor }]} />
-                      <Text style={styles.missionText}>MISSION CONSOLE // {providerLabel}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <TouchableOpacity onPress={() => router.replace('/chat')} style={{ paddingRight: 12 }}>
+                  <Ionicons name="chevron-back" size={20} color="#94a3b8" />
+                </TouchableOpacity>
+                <View style={{ flex: 1, marginRight: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                    <View style={[styles.livePulse, { backgroundColor: accentColor, shadowColor: accentColor }]} />
+                    <Text style={styles.missionText} numberOfLines={1}>{currentRepo?.name.toUpperCase() || 'OFFLINE'}</Text>
                   </View>
-                  <Text style={styles.headerTitle}>
-                      {currentRepo?.name.toUpperCase() || 'OFFLINE'}
-                      {currentBranch && ` • ${currentBranch.toUpperCase()}`}
-                  </Text>
-              </View>
-            </View>
-
-            {/* Model Switcher Button */}
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowModelSwitcher(true);
-              }}
-              style={[styles.modelBtn, { borderColor: `${accentColor}55`, backgroundColor: `${accentColor}12` }]}
-            >
-              <Image source={selectedModel.logo} style={{ width: selectedModel.logoRound ? 18 : 14, height: selectedModel.logoRound ? 18 : 14, borderRadius: selectedModel.logoRound ? 9 : 0 }} resizeMode="contain" />
-              <Text style={[styles.modelBtnText, { color: accentColor }]} numberOfLines={1}>
-                {selectedModel.name}
-              </Text>
-            </TouchableOpacity>
-
-            {todos.length > 0 && (
-              <TouchableOpacity 
-                onPress={() => setShowTodoModal(true)} 
-                style={[styles.headerButton, { backgroundColor: `${accentColor}12`, borderColor: `${accentColor}33`, marginRight: 6 }]}
-              >
-                <Ionicons name="list" size={18} color={accentColor} />
-                <View style={[styles.todoBadge, { backgroundColor: accentColor }]}>
-                  <Text style={styles.todoBadgeText}>{todos.filter(t => t.status === 'completed').length}/{todos.length}</Text>
+                  <TouchableOpacity onPress={() => setShowBranchModal(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="git-branch-outline" size={12} color="#64748b" />
+                    <Text style={{ color: '#94a3b8', fontSize: 10, fontWeight: '700' }} numberOfLines={1}>{currentBranch?.toUpperCase() || 'MAIN'}</Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-            )}
+              </View>
 
-            <TouchableOpacity onPress={() => setShowBranchModal(true)} style={[styles.refreshBtn, { borderColor: 'rgba(255, 255, 255, 0.2)', marginRight: 6 }]}>
-                <Ionicons name="git-branch" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleNewChat} style={[styles.refreshBtn, { borderColor: `${accentColor}33` }]}>
-                <Ionicons name="reload" size={18} color={accentColor} />
-            </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowModelSwitcher(true);
+                  }}
+                  style={[styles.compactModelBtn, { borderColor: `${accentColor}44`, backgroundColor: `${accentColor}12` }]}
+                >
+                  <Image source={selectedModel.logo} style={{ width: selectedModel.logoRound ? 16 : 14, height: selectedModel.logoRound ? 16 : 14, borderRadius: selectedModel.logoRound ? 8 : 0 }} resizeMode="contain" />
+                  <Text style={[styles.compactModelBtnText, { color: accentColor }]} numberOfLines={1}>
+                    {selectedModel.name}
+                  </Text>
+                </TouchableOpacity>
+
+                {todos.length > 0 && (
+                  <TouchableOpacity onPress={() => setShowTodoModal(true)} style={[styles.compactBtn, { borderColor: `${accentColor}33`, backgroundColor: `${accentColor}12` }]}>
+                    <Ionicons name="list" size={14} color={accentColor} />
+                    <View style={[styles.todoBadgeSmall, { backgroundColor: accentColor }]}>
+                      <Text style={styles.todoBadgeTextSmall}>{todos.filter(t => t.status === 'completed').length}</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity onPress={handleNewChat} style={[styles.compactBtn, { borderColor: `${accentColor}33` }]}>
+                    <Ionicons name="reload" size={14} color={accentColor} />
+                </TouchableOpacity>
+              </View>
+
+            </View>
           </GlassBox>
 
           {isNavigating ? (
@@ -1257,7 +1528,9 @@ export default function ChatScreen() {
           selectedModel={selectedModel}
           onSelectModel={handleModelSwitch}
           geminiApiKey={geminiApiKey}
+          grokApiKey={grokApiKey}
           onRequestGeminiKey={() => setShowGeminiKeyModal(true)}
+          onRequestGrokKey={() => setShowGrokKeyModal(true)}
         />
 
         {/* Gemini API Key Modal */}
@@ -1265,6 +1538,13 @@ export default function ChatScreen() {
           visible={showGeminiKeyModal}
           onClose={() => setShowGeminiKeyModal(false)}
           onSave={handleSaveGeminiKey}
+        />
+
+        {/* Grok API Key Modal */}
+        <GrokKeyModal
+          visible={showGrokKeyModal}
+          onClose={() => setShowGrokKeyModal(false)}
+          onSave={handleSaveGrokKey}
         />
 
         <TodoModal 
@@ -1387,6 +1667,45 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  compactBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  compactModelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  compactModelBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  todoBadgeSmall: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  todoBadgeTextSmall: {
+    color: '#000',
+    fontSize: 8,
+    fontWeight: '900',
   },
   messageWrapper: {
       marginBottom: 20,

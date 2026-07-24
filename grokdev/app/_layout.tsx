@@ -1,11 +1,13 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { useRepoStore } from '../store/repoStore';
 import { View, ActivityIndicator } from 'react-native';
 import Onboarding from '../components/Onboarding';
 
 export default function RootLayout() {
   const { isAuthenticated, hasOnboarded, loadAuth, finishOnboarding } = useAuthStore();
+  const { loadSavedRepo } = useRepoStore();
   const segments = useSegments();
   const router = useRouter();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -14,6 +16,7 @@ export default function RootLayout() {
   useEffect(() => {
     const init = async () => {
       await loadAuth();
+      await loadSavedRepo();
       setIsInitialLoad(false);
     };
     init();

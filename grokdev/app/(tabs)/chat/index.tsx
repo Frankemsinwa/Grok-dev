@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Platform, ActivityIndicator, SafeAreaView, InteractionManager, Dimensions, Image } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Platform, ActivityIndicator, InteractionManager, Dimensions, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '../../../store/authStore';
 import { BlurView } from 'expo-blur';

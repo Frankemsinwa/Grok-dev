@@ -95,9 +95,9 @@ export default function TabLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tabs.Screen name="home" options={{ title: 'COMMAND' }} />
-      <Tabs.Screen name="chat" options={{ title: 'GROK' }} />
-      <Tabs.Screen name="explorer" options={{ title: 'FILES' }} />
       <Tabs.Screen name="github" options={{ title: 'SOURCE' }} />
+      <Tabs.Screen name="explorer" options={{ title: 'FILES' }} />
+      <Tabs.Screen name="chat" options={{ title: 'GROK' }} />
       <Tabs.Screen name="settings" options={{ title: 'CONFIG' }} />
     </Tabs>
   );

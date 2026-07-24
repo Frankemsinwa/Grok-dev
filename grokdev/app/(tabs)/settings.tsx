@@ -36,13 +36,13 @@ const GlassSection = ({ children, title, index = 0 }: { children: React.ReactNod
 
 export default function SettingsScreen() {
   const { user, token, logout, setAuth } = useAuthStore();
-  const { selectedModel, geminiApiKey, loadGeminiApiKey, setGeminiApiKey, clearGeminiApiKey, isGeminiKeyLoaded } = useModelStore();
+  const { selectedModel, geminiApiKey, loadApiKeys, setGeminiApiKey, clearGeminiApiKey, isKeysLoaded } = useModelStore();
   const [connecting, setConnecting] = useState(false);
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [newApiKey, setNewApiKey] = useState('');
 
   useEffect(() => {
-    if (!isGeminiKeyLoaded) loadGeminiApiKey();
+    if (!isKeysLoaded) loadApiKeys();
   }, []);
 
   const handleConnectGitHub = async () => {
