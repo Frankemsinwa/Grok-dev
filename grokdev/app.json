@@ -5,11 +5,10 @@
     "scheme": "com.grokdev",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Grok-solid.jpg",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/Grok-trans.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -18,10 +17,9 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Grok-trans.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1e293b"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "usesCleartextTraffic": true,
       "package": "com.frankemesinwa.grokdev"
@@ -32,12 +30,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "expo-status-bar",
+      "expo-font",
       [
-        "react-native-app-auth",
+        "expo-splash-screen",
         {
-          "android": {
-            "appAuthRedirectScheme": "com.grokdev"
-          }
+          "backgroundColor": "#000000",
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain"
         }
       ]
     ],

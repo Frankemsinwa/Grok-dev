@@ -1,167 +1,82 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Dimensions, KeyboardAvoidingView, Platform, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuthStore } from '../../store/authStore';
+import React, { useEffect } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Image, Linking } from 'react-native';
 import Starfield from '../../components/Starfield';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, interpolate, withRepeat, withSequence } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, withRepeat, withSequence } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-
-import { API_BASE_URL } from '../../constants/Config';
 
 const GROK_LOGO = require('../../assets/Grok-trans.png');
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
+const GITHUB_CLIENT_ID = process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID;
 
-  const formOpacity = useSharedValue(0);
-  const formTranslateY = useSharedValue(50);
+export default function LoginScreen() {
+
   const logoScale = useSharedValue(0.8);
+  const contentOpacity = useSharedValue(0);
+  const contentTranslateY = useSharedValue(30);
   const glowOpacity = useSharedValue(0.3);
 
   useEffect(() => {
-    formOpacity.value = withDelay(400, withTiming(1, { duration: 800 }));
-    formTranslateY.value = withDelay(400, withTiming(0, { duration: 800, easing: Easing.out(Easing.back(1.5)) }));
     logoScale.value = withDelay(200, withTiming(1, { duration: 1000, easing: Easing.out(Easing.exp) }));
-    
+    contentOpacity.value = withDelay(600, withTiming(1, { duration: 800 }));
+    contentTranslateY.value = withDelay(600, withTiming(0, { duration: 800, easing: Easing.out(Easing.back(1.5)) }));
     glowOpacity.value = withRepeat(
-        withSequence(
-            withTiming(0.6, { duration: 2000 }),
-            withTiming(0.3, { duration: 2000 })
-        ),
-        -1,
-        true
+      withSequence(
+        withTiming(0.6, { duration: 2000 }),
+        withTiming(0.3, { duration: 2000 })
+      ),
+      -1,
+      true
     );
   }, []);
-
-  const formAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: formOpacity.value,
-    transform: [{ translateY: formTranslateY.value }]
-  }));
 
   const logoAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: logoScale.value }]
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
-      opacity: glowOpacity.value,
-      transform: [{ scale: interpolate(glowOpacity.value, [0.3, 0.6], [1, 1.1]) }]
+    opacity: glowOpacity.value,
+    transform: [{ scale: glowOpacity.value }]
   }));
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+  const contentAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [{ translateY: contentTranslateY.value }]
+  }));
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setLoading(true);
+  const handleGitHubAuth = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        await setAuth(data.user, data.token);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace('/(tabs)/home');
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Login Failed', data.error || 'Invalid credentials');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Error', 'Network error. Please try again.');
-    } finally {
-      setLoading(false);
+      const redirectUri = Linking.createURL('oauth');
+      const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo,user`;
+      await Linking.openURL(authUrl);
+    } catch (error: any) {
+      Alert.alert('Connection Error', error.message || 'Failed to open GitHub authentication.');
     }
   };
 
   return (
     <View style={styles.container}>
       <Starfield />
-      
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <View style={styles.inner}>
-          <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
-            <Animated.View style={[styles.glow, glowStyle]} />
-            <Image source={GROK_LOGO} style={styles.logoImage} resizeMode="contain" />
-            <Text style={styles.tagline}>CO-PILOTED BY GROK-3</Text>
-          </Animated.View>
 
-          <Animated.View style={[styles.formContainer, formAnimatedStyle]}>
-            <BlurView intensity={30} tint="dark" style={styles.blurContainer}>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Neural Identity (Email)"
-                  placeholderTextColor="#64748b"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                />
-              </View>
+      <View style={styles.inner}>
+        <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+          <Animated.View style={[styles.glow, glowStyle]} />
+          <Image source={GROK_LOGO} style={styles.logoImage} resizeMode="contain" />
+          <Text style={styles.tagline}>CO-PILOTED BY GROK-3</Text>
+        </Animated.View>
 
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Access Key (Password)"
-                  placeholderTextColor="#64748b"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-
-              <TouchableOpacity 
-                style={styles.loginButton}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <View style={styles.buttonContent}>
-                    <Text style={styles.loginButtonText}>INITIATE SESSION</Text>
-                    <Ionicons name="chevron-forward" size={18} color="#000" />
-                  </View>
-                )}
-              </TouchableOpacity>
-
-            </BlurView>
-
-            <TouchableOpacity 
-                onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push('/register');
-                }} 
-                style={styles.registerLink}
-            >
-              <Text style={styles.registerText}>
-                No uplink established? <Text style={styles.registerLinkHighlight}>Create Account</Text>
-              </Text>
+        <Animated.View style={[styles.content, contentAnimatedStyle]}>
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.githubButton} onPress={handleGitHubAuth} activeOpacity={0.85}>
+              <Ionicons name="logo-github" size={24} color="#000" />
+              <Text style={styles.githubButtonText}>SIGN IN WITH GITHUB</Text>
             </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </KeyboardAvoidingView>
+
+            <Text style={styles.terms}>
+              By signing in, you authorize GrokDev to access your public repositories and user profile.
+            </Text>
+          </View>
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -171,9 +86,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  keyboardView: {
-    flex: 1,
-  },
   inner: {
     flex: 1,
     justifyContent: 'center',
@@ -181,7 +93,7 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: 60,
   },
   glow: {
     position: 'absolute',
@@ -196,12 +108,6 @@ const styles = StyleSheet.create({
     width: 200,
     height: 60,
   },
-  logo: {
-    color: '#fff',
-    fontSize: 42,
-    fontWeight: '900',
-    letterSpacing: 4,
-  },
   tagline: {
     color: '#94a3b8',
     fontSize: 12,
@@ -209,69 +115,46 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     marginTop: 8,
   },
-  formContainer: {
+  content: {
     width: '100%',
+    alignItems: 'center',
   },
-  blurContainer: {
+  card: {
+    width: '100%',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     borderRadius: 24,
-    padding: 24,
+    padding: 32,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(15, 23, 42, 0.3)',
+    alignItems: 'center',
   },
-  inputWrapper: {
+  githubButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  inputIcon: {
-    paddingLeft: 16,
-  },
-  input: {
-    flex: 1,
-    color: '#fff',
-    padding: 16,
-    fontSize: 16,
-  },
-  loginButton: {
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
+    width: '100%',
+    gap: 12,
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  loginButtonText: {
+  githubButtonText: {
     color: '#000',
     fontWeight: '900',
     fontSize: 14,
     letterSpacing: 2,
-    marginRight: 8,
   },
-  registerLink: {
+  terms: {
+    color: '#475569',
+    fontSize: 12,
+    textAlign: 'center',
     marginTop: 24,
-    alignItems: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 10,
   },
-  registerText: {
-    color: '#64748b',
-    fontSize: 14,
-  },
-  registerLinkHighlight: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  }
 });

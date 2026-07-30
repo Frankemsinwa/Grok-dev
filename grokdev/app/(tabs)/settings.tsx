@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, ScrollView, Platform, Dimensions, TextInput, Image } from 'react-native';
-import * as Linking from 'expo-linking';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView, Platform, Dimensions, TextInput, Image } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useModelStore } from '../../store/modelStore';
 import { Ionicons } from '@expo/vector-icons';
 import Starfield from '../../components/Starfield';
 import { BlurView } from 'expo-blur';
-import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
-import { API_BASE_URL } from '../../constants/Config';
-const GITHUB_CLIENT_ID = process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID;
-const REDIRECT_URI = process.env.EXPO_PUBLIC_GITHUB_REDIRECT_URI || 'com.grokdev://oauth';
 
 const GlassSection = ({ children, title, index = 0 }: { children: React.ReactNode, title: string, index?: number }) => (
     <Animated.View 
@@ -35,59 +31,14 @@ const GlassSection = ({ children, title, index = 0 }: { children: React.ReactNod
 );
 
 export default function SettingsScreen() {
-  const { user, token, logout, setAuth } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { selectedModel, geminiApiKey, loadApiKeys, setGeminiApiKey, clearGeminiApiKey, isKeysLoaded } = useModelStore();
-  const [connecting, setConnecting] = useState(false);
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [newApiKey, setNewApiKey] = useState('');
 
   useEffect(() => {
     if (!isKeysLoaded) loadApiKeys();
   }, []);
-
-  const handleConnectGitHub = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setConnecting(true);
-    try {
-      const dynamicRedirectUri = Linking.createURL('oauth');
-      const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(dynamicRedirectUri)}&scope=repo,user`;
-
-      Alert.alert(
-        'GitHub Uplink',
-        'Redirecting to GitHub Matrix for identity verification. \n\nNote: If you are using the Expo sandbox, make sure your GitHub App Callback URL is set to: \n\n' + dynamicRedirectUri,
-        [
-          { text: 'ABORT', style: 'cancel', onPress: () => setConnecting(false) },
-          { 
-            text: 'ESTABLISH', 
-            onPress: async () => {
-              try {
-                Linking.openURL(authUrl);
-                
-                // Add a reasonable timeout (e.g., 60 seconds)
-                setTimeout(() => {
-                  setConnecting((currentConnectingStatus) => {
-                    if (currentConnectingStatus) {
-                      Alert.alert('UPLINK TIMEOUT', 'The connection to the GitHub matrix timed out. Please try again.');
-                      return false;
-                    }
-                    return currentConnectingStatus;
-                  });
-                }, 60000); 
-
-              } catch (err) {
-                Alert.alert('SYSTEM ERROR', 'Failed to initialize browser module.');
-                setConnecting(false);
-              }
-            }
-          }
-        ]
-      );
-    } catch (error: any) {
-      console.error('GitHub error:', error);
-      Alert.alert('BRIDGE ERROR', error.message || 'Fatal error during uplink.');
-      setConnecting(false);
-    }
-  };
 
   const handleLogout = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -122,46 +73,22 @@ export default function SettingsScreen() {
             <Text style={styles.email}>{user?.email}</Text>
         </Animated.View>
 
-        <GlassSection title="Neural Profile" index={1}>
+        <GlassSection title="GitHub Identity" index={1}>
             <View style={styles.row}>
-                <View>
-                    <Text style={styles.label}>Access ID</Text>
-                    <Text style={styles.value}>{user?.id?.substring(0, 12)}...</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Ionicons name="logo-github" size={28} color="#fff" />
+                    <View>
+                        <Text style={styles.rowTitle}>{user?.username || 'UNKNOWN'}</Text>
+                        <Text style={[styles.rowStatus, { color: '#4ade80' }]}>CONNECTED</Text>
+                    </View>
                 </View>
-                <Ionicons name="finger-print" size={20} color="#FFFFFF" />
+                <View style={[styles.badge, { borderColor: 'rgba(74, 222, 128, 0.4)', backgroundColor: 'rgba(74, 222, 128, 0.1)' }]}>
+                    <Text style={[styles.badgeText, { color: '#4ade80' }]}>AUTH'D</Text>
+                </View>
             </View>
         </GlassSection>
 
-        <GlassSection title="Uplinks" index={2}>
-            <TouchableOpacity 
-                style={[
-                    styles.row, 
-                    user?.isGithubConnected && styles.connectedRow
-                ]}
-                onPress={handleConnectGitHub}
-                disabled={connecting || !!user?.isGithubConnected}
-            >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="logo-github" size={24} color="#fff" style={{ marginRight: 16 }} />
-                    <View>
-                        <Text style={styles.rowTitle}>GitHub Matrix</Text>
-                        <Text style={[
-                            styles.rowStatus,
-                            { color: user?.isGithubConnected ? '#4ade80' : '#64748b' }
-                        ]}>
-                            {user?.isGithubConnected ? 'SYNCHRONIZED' : 'DECOUPLED'}
-                        </Text>
-                    </View>
-                </View>
-                {connecting ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                    !user?.isGithubConnected && <Ionicons name="chevron-forward" size={20} color="#64748b" />
-                )}
-            </TouchableOpacity>
-        </GlassSection>
-
-        <GlassSection title="Neural Core" index={3}>
+        <GlassSection title="Neural Core" index={2}>
             <View style={styles.row}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: selectedModel.accentColor, borderWidth: 1, borderColor: `${selectedModel.color}44`, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
@@ -178,7 +105,7 @@ export default function SettingsScreen() {
             </View>
         </GlassSection>
 
-        <GlassSection title="Gemini API Key" index={4}>
+        <GlassSection title="Gemini API Key" index={3}>
             {geminiApiKey ? (
               <>
                 <View style={styles.row}>
@@ -400,9 +327,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '900',
-  },
-  connectedRow: {
-    borderColor: 'rgba(74, 222, 128, 0.2)',
   },
   logoutButton: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',

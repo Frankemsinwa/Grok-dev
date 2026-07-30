@@ -11,7 +11,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -21,6 +21,12 @@ export default function RootLayout() {
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (!isInitialLoad && !hasOnboarded) {
+      setShowOnboarding(true);
+    }
+  }, [isInitialLoad, hasOnboarded]);
 
   useEffect(() => {
     if (isInitialLoad) return;
