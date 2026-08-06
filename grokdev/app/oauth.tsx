@@ -27,7 +27,7 @@ export default function OAuthCallback() {
   const exchangeCode = async () => {
     try {
       const redirectUri = Linking.createURL('oauth');
-      const response = await fetch(`${API_BASE_URL}/github/callback`, {
+      const response = await fetch(`${API_BASE_URL}/auth/github`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, redirectUri }),

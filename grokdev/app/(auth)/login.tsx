@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Image, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Image } from 'react-native';
+import * as Linking from 'expo-linking';
 import Starfield from '../../components/Starfield';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, withRepeat, withSequence } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,7 +62,6 @@ export default function LoginScreen() {
         <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
           <Animated.View style={[styles.glow, glowStyle]} />
           <Image source={GROK_LOGO} style={styles.logoImage} resizeMode="contain" />
-          <Text style={styles.tagline}>CO-PILOTED BY GROK-3</Text>
         </Animated.View>
 
         <Animated.View style={[styles.content, contentAnimatedStyle]}>
@@ -107,13 +107,6 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 200,
     height: 60,
-  },
-  tagline: {
-    color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 3,
-    marginTop: 8,
   },
   content: {
     width: '100%',
