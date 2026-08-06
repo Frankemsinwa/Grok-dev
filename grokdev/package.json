@@ -33,7 +33,6 @@
     "nativewind": "^4.0.36",
     "react": "19.2.3",
     "react-native": "0.86.2",
-    "react-native-app-auth": "^8.1.0",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-get-random-values": "~1.11.0",
     "react-native-markdown-display": "^7.0.2",
