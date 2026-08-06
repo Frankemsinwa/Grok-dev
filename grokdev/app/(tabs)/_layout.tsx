@@ -2,11 +2,6 @@ import { Tabs } from 'expo-router';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Colors, Font, Radius, Spacing } from '../../constants/theme';
 
@@ -20,16 +15,10 @@ const TABS: { name: string; title: string; icon: string; iconOutline: string }[]
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
-  const translateX = useSharedValue(state.index * (100 / TABS.length));
-
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: withSpring(translateX.value, { damping: 20, stiffness: 200 }) }],
-  }));
 
   return (
     <View style={[styles.wrapper, { bottom: insets.bottom + Spacing.sm }]}>
       <View style={styles.bar}>
-        <Animated.View style={[styles.indicator, indicatorStyle]} />
         {state.routes.map((route: any, index: number) => {
           const tab = TABS.find((t) => t.name === route.name) || TABS[0];
           const isFocused = state.index === index;
@@ -43,7 +32,6 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
             if (!isFocused && !event.defaultPrevented) {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              translateX.value = index * (100 / TABS.length);
               navigation.navigate(route.name);
             }
           };
@@ -101,16 +89,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     overflow: 'hidden',
     paddingHorizontal: Spacing.sm,
-  },
-  indicator: {
-    position: 'absolute',
-    top: 6,
-    bottom: 6,
-    width: `${100 / TABS.length}%`,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.borderStrong,
-    borderRadius: Radius.lg,
   },
   tabItem: {
     flex: 1,

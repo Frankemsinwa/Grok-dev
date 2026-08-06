@@ -19,6 +19,7 @@
   "type": "commonjs",
   "dependencies": {
     "@ai-sdk/google": "^3.0.60",
+    "@ai-sdk/openai": "^3.0.0",
     "@ai-sdk/xai": "^3.0.80",
     "@google/genai": "^1.48.0",
     "@octokit/rest": "^20.1.1",

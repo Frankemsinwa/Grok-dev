@@ -708,6 +708,7 @@ export default function EditorScreen() {
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const [layoutLines, setLayoutLines] = useState<any[]>([]);
   const scrollRef = useRef<ScrollView>(null);
   const editRef = useRef<TextInput>(null);
 
@@ -723,6 +724,44 @@ export default function EditorScreen() {
   const lines = useMemo(() => displayContent.split('\n'), [displayContent]);
   const lineCount = lines.length;
   const charCount = displayContent.length;
+
+  // Edit-mode wrapping: gutter + text widths derived from screen and gutter size
+  const gutterWidth = Math.max(3, String(lineCount).length) * 10 + 16;
+  const editTextWidth = SCREEN_WIDTH - gutterWidth - GUTTER_PADDING;
+
+  // Map logical lines to wrapped visual rows using the hidden measurement Text,
+  // so the line-number gutter stays aligned when text wraps against the screen.
+  const gutterEntries = useMemo(() => {
+    const fallback = lines.map((_, i) => ({ number: i + 1, height: LINE_HEIGHT }));
+    if (!layoutLines || layoutLines.length === 0) return fallback;
+
+    const entries: { number: number; height: number }[] = [];
+    let li = 0;
+    let acc = '';
+    let startY: number | null = null;
+    let lastBottom = 0;
+
+    for (const v of layoutLines) {
+      if (li >= lines.length) break;
+      if (startY === null) startY = v.y;
+      lastBottom = v.y + v.height;
+      acc += v.text;
+      const target = lines[li];
+      if (acc === target || (target === '' && v.text.trim() === '')) {
+        entries.push({ number: li + 1, height: Math.max(LINE_HEIGHT, lastBottom - (startY as number)) });
+        li++;
+        acc = '';
+        startY = null;
+      }
+    }
+
+    // Fill any logical lines the native layout did not report
+    while (li < lines.length) {
+      entries.push({ number: li + 1, height: LINE_HEIGHT });
+      li++;
+    }
+    return entries;
+  }, [lines, layoutLines]);
 
   // Search
   const searchMatches = useMemo(() => {
@@ -1031,35 +1070,63 @@ export default function EditorScreen() {
               keyboardShouldPersistTaps="always"
             >
               {isEditing ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
-                  <View style={{ flexDirection: 'row', minWidth: SCREEN_WIDTH }}>
-                    {/* Fixed-Width Gutter for Line Numbers (Edit Mode) */}
-                    <View style={[lineStyles.gutter, { width: Math.max(3, String(lineCount).length) * 10 + 16 }]}>
-                      {lines.map((_, idx) => (
-                        <Text key={idx} style={[lineStyles.lineNumber, { minHeight: LINE_HEIGHT, textAlign: 'right' }]}>{idx + 1}</Text>
-                      ))}
-                    </View>
-
-                    {/* Plain Text Editor Surface */}
-                    <View style={{ flex: 1, paddingLeft: GUTTER_PADDING }}>
-                      <TextInput
-                        ref={editRef}
-                        style={[styles.editInput, { paddingVertical: 0, paddingHorizontal: 0, color: '#ABB2BF', flex: 1, minWidth: SCREEN_WIDTH * 2 }]}
-                        value={editedContent}
-                        onChangeText={handleContentChange}
-                        onSelectionChange={handleSelectionChange}
-                        selection={selection}
-                        multiline
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        spellCheck={false}
-                        textAlignVertical="top"
-                        scrollEnabled={false}
-                        cursorColor={Colors.accent}
-                      />
-                    </View>
+                <View style={{ flexDirection: 'row' }}>
+                  {/* Fixed-Width Gutter for Line Numbers (Edit Mode, wrap-aligned) */}
+                  <View style={[lineStyles.gutter, { width: gutterWidth }]}>
+                    {gutterEntries.map((entry) => (
+                      <View
+                        key={entry.number}
+                        style={{ height: entry.height, justifyContent: 'flex-start' }}
+                      >
+                        <Text style={[lineStyles.lineNumber, { textAlign: 'right' }]}>{entry.number}</Text>
+                      </View>
+                    ))}
                   </View>
-                </ScrollView>
+
+                  {/* Plain Text Editor Surface (wraps against the screen) */}
+                  <View style={{ flex: 1, paddingLeft: GUTTER_PADDING }}>
+                    <TextInput
+                      ref={editRef}
+                      style={[styles.editInput, { paddingVertical: 0, paddingHorizontal: 0, color: '#ABB2BF', flex: 1 }]}
+                      value={editedContent}
+                      onChangeText={handleContentChange}
+                      onSelectionChange={handleSelectionChange}
+                      selection={selection}
+                      multiline
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      spellCheck={false}
+                      textAlignVertical="top"
+                      scrollEnabled={false}
+                      cursorColor={Colors.accent}
+                    />
+                  </View>
+
+                  {/* Hidden measurement layer: reports exact wrapped row positions */}
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: gutterWidth + GUTTER_PADDING,
+                      width: editTextWidth,
+                      opacity: 0,
+                      zIndex: -1,
+                    }}
+                    pointerEvents="none"
+                  >
+                    <Text
+                      onTextLayout={(e) => setLayoutLines(e.nativeEvent.lines)}
+                      style={{
+                        fontFamily: EDITOR_FONT,
+                        fontSize: EDITOR_FONT_SIZE,
+                        lineHeight: LINE_HEIGHT,
+                        color: '#ABB2BF',
+                      }}
+                    >
+                      {editedContent}
+                    </Text>
+                  </View>
+                </View>
               ) : (
                 <View>
                   {/* Background Syntax Highlighting Layer (View Mode) */}

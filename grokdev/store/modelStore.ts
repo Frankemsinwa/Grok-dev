@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { ImageSourcePropType } from 'react-native';
 
-export type AIProvider = 'grok' | 'gemini';
+export type AIProvider = 'grok' | 'gemini' | 'custom';
 
 export interface ModelOption {
   id: string;
@@ -13,11 +13,17 @@ export interface ModelOption {
   logoRound: boolean;          // Whether the logo should be circular (for square logos)
   color: string;
   accentColor: string;
+  apiKey?: string;             // Custom provider API key (OpenAI-compatible)
+  endpoint?: string;           // Custom provider base URL (OpenAI-compatible)
+  modelId?: string;            // Custom provider model identifier sent to the API
 }
 
 // Pre-require the logo assets
 const GROK_LOGO = require('../assets/grok.jpeg');
 const GEMINI_LOGO = require('../assets/gemini.webp');
+const CUSTOM_LOGO = require('../assets/icon.png');
+
+export const CUSTOM_ACCENT = '#4F8CFF';
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
@@ -96,23 +102,49 @@ interface ModelState {
   selectedModel: ModelOption;
   geminiApiKey: string | null;
   grokApiKey: string | null;
+  customModels: ModelOption[];
   isKeysLoaded: boolean;
   setSelectedModel: (model: ModelOption) => void;
   setGeminiApiKey: (key: string) => Promise<void>;
   setGrokApiKey: (key: string) => Promise<void>;
   clearGeminiApiKey: () => Promise<void>;
   clearGrokApiKey: () => Promise<void>;
+  addCustomModel: (model: ModelOption) => Promise<void>;
+  removeCustomModel: (id: string) => Promise<void>;
   loadApiKeys: () => Promise<void>;
 }
 
 const GEMINI_KEY_STORAGE = 'gemini_api_key';
 const GROK_KEY_STORAGE = 'grok_api_key';
 const SELECTED_MODEL_STORAGE = 'selected_model_id';
+const CUSTOM_MODELS_STORAGE = 'custom_models';
+
+export function buildCustomModel(input: {
+  name: string;
+  modelId?: string;
+  apiKey: string;
+  endpoint: string;
+}): ModelOption {
+  return {
+    id: `custom-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    name: input.name.trim(),
+    provider: 'custom',
+    description: 'Custom OpenAI-compatible model',
+    logo: CUSTOM_LOGO,
+    logoRound: true,
+    color: CUSTOM_ACCENT,
+    accentColor: `${CUSTOM_ACCENT}22`,
+    apiKey: input.apiKey.trim(),
+    endpoint: input.endpoint.trim().replace(/\/+$/, ''),
+    modelId: input.modelId?.trim() || input.name.trim(),
+  };
+}
 
 export const useModelStore = create<ModelState>((set, get) => ({
   selectedModel: MODEL_OPTIONS[0], // Default to Grok
   geminiApiKey: null,
   grokApiKey: null,
+  customModels: [],
   isKeysLoaded: false,
 
   setSelectedModel: async (model) => {
@@ -140,15 +172,45 @@ export const useModelStore = create<ModelState>((set, get) => ({
     set({ grokApiKey: null });
   },
 
+  addCustomModel: async (model) => {
+    const customModels = [...get().customModels, model];
+    await SecureStore.setItemAsync(CUSTOM_MODELS_STORAGE, JSON.stringify(customModels));
+    set({ customModels });
+  },
+
+  removeCustomModel: async (id) => {
+    const customModels = get().customModels.filter((m) => m.id !== id);
+    await SecureStore.setItemAsync(CUSTOM_MODELS_STORAGE, JSON.stringify(customModels));
+    const { selectedModel } = get();
+    if (selectedModel.id === id) {
+      set({ customModels, selectedModel: MODEL_OPTIONS[0] });
+      await SecureStore.setItemAsync(SELECTED_MODEL_STORAGE, MODEL_OPTIONS[0].id);
+    } else {
+      set({ customModels });
+    }
+  },
+
   loadApiKeys: async () => {
     const geminiKey = await SecureStore.getItemAsync(GEMINI_KEY_STORAGE);
     const grokKey = await SecureStore.getItemAsync(GROK_KEY_STORAGE);
     const savedModelId = await SecureStore.getItemAsync(SELECTED_MODEL_STORAGE);
-    const savedModel = MODEL_OPTIONS.find(m => m.id === savedModelId);
-    
+    const customRaw = await SecureStore.getItemAsync(CUSTOM_MODELS_STORAGE);
+    let customModels: ModelOption[] = [];
+    try {
+      const parsed = customRaw ? JSON.parse(customRaw) : [];
+      if (Array.isArray(parsed)) customModels = parsed;
+    } catch (e) {
+      customModels = [];
+    }
+
+    const savedModel =
+      MODEL_OPTIONS.find(m => m.id === savedModelId) ||
+      customModels.find(m => m.id === savedModelId);
+
     set({
       geminiApiKey: geminiKey || null,
       grokApiKey: grokKey || null,
+      customModels,
       isKeysLoaded: true,
       selectedModel: savedModel || MODEL_OPTIONS[0],
     });

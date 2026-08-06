@@ -2,6 +2,7 @@ import { Router, Response as ExpressResponse } from 'express';
 import { generateText, tool, ModelMessage } from 'ai';
 import { xai } from '@ai-sdk/xai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { chatRateLimit } from '../middleware/rateLimit';
@@ -30,7 +31,12 @@ function getRandomMotivation() {
 }
 
 // Resolve the correct AI model based on provider
-function resolveModel(provider: string, model: string, geminiApiKey?: string) {
+function resolveModel(
+  provider: string,
+  model: string,
+  geminiApiKey?: string,
+  customModel?: { apiKey?: string; endpoint?: string; modelId?: string }
+) {
   if (provider === 'gemini') {
     if (!geminiApiKey) {
       throw new Error('Gemini API key is required when using Google Gemini');
@@ -38,6 +44,17 @@ function resolveModel(provider: string, model: string, geminiApiKey?: string) {
     // Use client-provided API key (stored locally on their device, not in our DB)
     const google = createGoogleGenerativeAI({ apiKey: geminiApiKey });
     return google(model);
+  }
+  if (provider === 'custom') {
+    if (!customModel?.apiKey || !customModel?.endpoint) {
+      throw new Error('Custom model API key and endpoint are required');
+    }
+    // User-provided OpenAI-compatible endpoint + key (never persisted server-side)
+    const openai = createOpenAI({
+      apiKey: customModel.apiKey,
+      baseURL: customModel.endpoint,
+    });
+    return openai(customModel.modelId || model);
   }
   // Default: Grok via xAI
   return xai(model);
@@ -54,6 +71,10 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
     model = 'grok-beta',
     provider = 'grok',
     geminiApiKey,
+    customApiKey,
+    customEndpoint,
+    customModelId,
+    customName,
   } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
@@ -148,9 +169,17 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
     }
 
     // Resolve the model based on provider
-    const aiModel = resolveModel(provider, model, geminiApiKey);
+    const aiModel = resolveModel(
+      provider,
+      model,
+      geminiApiKey,
+      provider === 'custom' ? { apiKey: customApiKey, endpoint: customEndpoint, modelId: customModelId } : undefined
+    );
 
-    const providerLabel = provider === 'gemini' ? 'Gemini' : 'GrokDev';
+    const providerLabel =
+      provider === 'gemini' ? 'Gemini'
+      : provider === 'custom' ? (customName || 'Custom')
+      : 'GrokDev';
 
     console.log(`[CHAT-STREAM] ===== STARTING AI STREAM =====`);
     console.log(`[CHAT-STREAM] owner="${owner}" repo="${repo}" branch="${branch}" provider="${provider}" model="${model}"`);
@@ -469,7 +498,7 @@ router.post('/stream', authMiddleware, chatRateLimit, async (req: AuthRequest, r
 
       const result = await generateText({
         model: aiModel as any,
-        system: `You are ${providerLabel}, an elite autonomous IDE agent based on the Gemini architecture.
+        system: `You are ${providerLabel}, an elite autonomous IDE agent.
 Your objective: Resolve the user's request completely by navigating and modifying the repository ${owner}/${repo} (${branch}).
 
 STRICT OPERATIONAL RULES:
@@ -609,10 +638,12 @@ STRICT OPERATIONAL RULES:
     }));
   } catch (error: any) {
     console.error('Chat stream error:', error);
-    // Give a useful error message when Gemini key is invalid
+    // Give a useful error message when an API key is invalid or a custom endpoint fails
     const msg = error.message?.includes('API key')
-      ? 'Invalid Gemini API key. Please check your key in settings.'
-      : error.message || 'Error streaming from AI';
+      ? 'Invalid API key. Please check your key in settings.'
+      : error.message?.includes('fetch')
+        ? 'Could not reach the model endpoint. Check your API URL and connectivity.'
+        : error.message || 'Error streaming from AI';
     // Headers may already be flushed, so use end() instead of json()
     if (!res.headersSent) {
       res.status(500).json({ error: msg });

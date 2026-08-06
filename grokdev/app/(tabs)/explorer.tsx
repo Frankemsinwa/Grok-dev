@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Modal, Alert, Platform, SafeAreaView, FlatList, StyleSheet, InteractionManager } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Modal, Alert, Platform, FlatList, StyleSheet, InteractionManager } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 const FList = FlashList as any;
 import * as Haptics from 'expo-haptics';
@@ -256,21 +257,20 @@ export default function ExplorerScreen() {
 
   if (!currentRepo) {
     return (
-      <View style={[styles.container, styles.emptyContainer]}>
+      <SafeAreaView style={[styles.container, styles.emptyContainer]}>
         <Ionicons name="logo-github" size={48} color={Colors.textMuted} />
         <Text style={styles.emptyTitle}>No repository selected</Text>
         <Text style={styles.emptySubtitle}>
           Connect a repository from the Repos tab to browse files.
         </Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <SafeAreaView>
-        <View style={styles.header}>
+      <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.repoTitle} numberOfLines={1}>
               {currentRepo.name}
@@ -300,7 +300,6 @@ export default function ExplorerScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </SafeAreaView>
 
       {/* Breadcrumb / Path Navigation */}
       <View style={styles.breadcrumbArea}>
@@ -437,7 +436,7 @@ export default function ExplorerScreen() {
           <Text style={styles.fileOverlayText}>Loading file...</Text>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

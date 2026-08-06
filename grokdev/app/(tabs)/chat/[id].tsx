@@ -1,11 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, StyleSheet, Dimensions, Modal, Image, InteractionManager } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, StyleSheet, Dimensions, Modal, Image, InteractionManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const expoFetch = fetch;
 import Markdown from 'react-native-markdown-display';
 import { useAuthStore } from '../../../store/authStore';
 import { useRepoStore } from '../../../store/repoStore';
-import { useModelStore, MODEL_OPTIONS, type ModelOption } from '../../../store/modelStore';
+import { useModelStore, MODEL_OPTIONS, buildCustomModel, type ModelOption } from '../../../store/modelStore';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -636,6 +636,259 @@ const grokStyles = StyleSheet.create({
   },
 });
 
+// ─── Custom Model Prompt ─────────────────────────────────────────────────────
+function AddCustomModelModal({
+  visible,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSave: (input: { name: string; modelId: string; apiKey: string; endpoint: string }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [modelId, setModelId] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [endpoint, setEndpoint] = useState('');
+  const [showKey, setShowKey] = useState(false);
+
+  const canSave = name.trim().length > 0 && apiKey.trim().length > 0 && endpoint.trim().length > 0;
+
+  const handleSave = () => {
+    if (!canSave) {
+      Alert.alert('Missing fields', 'Please provide a name, API key, and endpoint.');
+      return;
+    }
+    onSave({ name: name.trim(), modelId: modelId.trim(), apiKey: apiKey.trim(), endpoint: endpoint.trim() });
+    setName('');
+    setModelId('');
+    setApiKey('');
+    setEndpoint('');
+    setShowKey(false);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={customStyles.overlay}>
+        <Animated.View entering={FadeInDown.springify()} style={customStyles.sheet}>
+          {/* Header */}
+          <View style={customStyles.header}>
+            <View style={customStyles.headerLeft}>
+              <View style={customStyles.customIcon}>
+                <Ionicons name="sparkles" size={22} color={Colors.accent} />
+              </View>
+              <View>
+                <Text style={customStyles.title}>Add custom model</Text>
+                <Text style={customStyles.subtitle}>Any OpenAI-compatible endpoint</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={customStyles.closeBtn}>
+              <Ionicons name="close" size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Info */}
+          <View style={customStyles.infoBox}>
+            <Ionicons name="shield-checkmark" size={16} color="#4ade80" />
+            <Text style={customStyles.infoText}>
+              Your API key is stored locally on this device only. It is never sent to our servers or stored in any database.
+            </Text>
+          </View>
+
+          {/* Fields */}
+          <Text style={customStyles.label}>Model name</Text>
+          <View style={customStyles.inputRow}>
+            <TextInput
+              style={customStyles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. My LLM"
+              placeholderTextColor="#334155"
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+          </View>
+
+          <Text style={customStyles.label}>Model ID</Text>
+          <View style={customStyles.inputRow}>
+            <TextInput
+              style={customStyles.input}
+              value={modelId}
+              onChangeText={setModelId}
+              placeholder="e.g. gpt-4o-mini (optional)"
+              placeholderTextColor="#334155"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <Text style={customStyles.label}>API key</Text>
+          <View style={customStyles.inputRow}>
+            <TextInput
+              style={customStyles.input}
+              value={apiKey}
+              onChangeText={setApiKey}
+              placeholder="sk-..."
+              placeholderTextColor="#334155"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={!showKey}
+            />
+            <TouchableOpacity
+              onPress={() => setShowKey(!showKey)}
+              style={customStyles.eyeBtn}
+            >
+              <Ionicons name={showKey ? 'eye-off' : 'eye'} size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={customStyles.label}>Endpoint (base URL)</Text>
+          <View style={customStyles.inputRow}>
+            <TextInput
+              style={customStyles.input}
+              value={endpoint}
+              onChangeText={setEndpoint}
+              placeholder="https://api.example.com/v1"
+              placeholderTextColor="#334155"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+          </View>
+
+          {/* Save Button */}
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={!canSave}
+            style={[
+              customStyles.saveBtn,
+              !canSave && { opacity: 0.4 },
+            ]}
+          >
+            <Ionicons name="checkmark-circle" size={18} color="#fff" />
+            <Text style={customStyles.saveBtnText}>Save & activate</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+const customStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  sheet: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: Radius.xl,
+    padding: Spacing.xxl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  customIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: Colors.accentMuted,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    color: Colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+  },
+  subtitle: {
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(74, 222, 128, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.18)',
+    borderRadius: Radius.md,
+    padding: 12,
+    marginBottom: 18,
+  },
+  infoText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 17,
+  },
+  label: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  input: {
+    flex: 1,
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontFamily: Font.mono,
+    paddingVertical: 12,
+  },
+  eyeBtn: {
+    padding: 4,
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.accent,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  saveBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+  },
+});
+
 // ─── Model Switcher Modal ────────────────────────────────────────────────────
 function ModelSwitcherModal({
   visible,
@@ -644,8 +897,11 @@ function ModelSwitcherModal({
   onSelectModel,
   geminiApiKey,
   grokApiKey,
+  customModels,
   onRequestGeminiKey,
   onRequestGrokKey,
+  onRequestAddCustom,
+  onRemoveCustom,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -653,9 +909,14 @@ function ModelSwitcherModal({
   onSelectModel: (model: ModelOption) => void;
   geminiApiKey: string | null;
   grokApiKey: string | null;
+  customModels: ModelOption[];
   onRequestGeminiKey: () => void;
   onRequestGrokKey: () => void;
+  onRequestAddCustom: () => void;
+  onRemoveCustom: (id: string) => void;
 }) {
+  const allModels = [...MODEL_OPTIONS, ...customModels];
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={switcherStyles.overlay}>
@@ -671,12 +932,18 @@ function ModelSwitcherModal({
             </TouchableOpacity>
           </View>
 
+          <ScrollView
+            style={{ maxHeight: 520 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="always"
+          >
           {/* Model Options */}
-          {MODEL_OPTIONS.map((model) => {
+          {allModels.map((model) => {
             const isActive = selectedModel.id === model.id;
             const needsGeminiKey = model.provider === 'gemini' && !geminiApiKey;
             const needsGrokKey = model.provider === 'grok' && !grokApiKey;
             const needsKey = needsGeminiKey || needsGrokKey;
+            const isCustom = model.provider === 'custom';
 
             return (
               <TouchableOpacity
@@ -702,7 +969,11 @@ function ModelSwitcherModal({
                 ]}
               >
                 <View style={[switcherStyles.modelIconBox, { backgroundColor: model.accentColor, borderColor: `${model.color}44`, overflow: 'hidden' }]}>
-                  <Image source={model.logo} style={{ width: model.logoRound ? 46 : 28, height: model.logoRound ? 46 : 28, borderRadius: model.logoRound ? 23 : 0 }} resizeMode="cover" />
+                  {isCustom ? (
+                    <Ionicons name="sparkles" size={22} color={model.color} />
+                  ) : (
+                    <Image source={model.logo} style={{ width: model.logoRound ? 46 : 28, height: model.logoRound ? 46 : 28, borderRadius: model.logoRound ? 23 : 0 }} resizeMode="cover" />
+                  )}
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -724,12 +995,45 @@ function ModelSwitcherModal({
                   <View style={[switcherStyles.activeDot, { backgroundColor: model.color }]}>
                     <Ionicons name="checkmark" size={14} color="#fff" />
                   </View>
+                ) : isCustom ? (
+                  <TouchableOpacity
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    onPress={() => {
+                      Alert.alert(
+                        'Remove Custom Model?',
+                        `"${model.name}" will be deleted from this device.`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Remove',
+                            style: 'destructive',
+                            onPress: () => onRemoveCustom(model.id),
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  </TouchableOpacity>
                 ) : (
                   <Ionicons name="chevron-forward" size={18} color="#334155" />
                 )}
               </TouchableOpacity>
             );
           })}
+
+          {/* Add Custom Model */}
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onClose();
+              setTimeout(() => onRequestAddCustom(), 300);
+            }}
+            style={switcherStyles.addCustomBtn}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={Colors.accent} />
+            <Text style={switcherStyles.addCustomText}>Add custom model</Text>
+          </TouchableOpacity>
 
           {/* Grok Key Management */}
           {grokApiKey && (
@@ -794,6 +1098,7 @@ function ModelSwitcherModal({
               </TouchableOpacity>
             </View>
           )}
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -869,6 +1174,25 @@ const switcherStyles = StyleSheet.create({
     fontSize: Font.sizeSM,
     marginTop: 2,
   },
+  addCustomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 6,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    borderStyle: 'dashed',
+    backgroundColor: Colors.surfaceMuted,
+  },
+  addCustomText: {
+    color: Colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+  },
   activeDot: {
     width: 24,
     height: 24,
@@ -918,7 +1242,7 @@ const switcherStyles = StyleSheet.create({
 export default function ChatScreen() {
   const { token } = useAuthStore();
   const { currentRepo, currentBranch, setCurrentBranch, setCurrentRepo } = useRepoStore();
-  const { selectedModel, geminiApiKey, grokApiKey, loadApiKeys, setSelectedModel, setGeminiApiKey, setGrokApiKey, isKeysLoaded } = useModelStore();
+  const { selectedModel, geminiApiKey, grokApiKey, customModels, loadApiKeys, setSelectedModel, setGeminiApiKey, setGrokApiKey, addCustomModel, removeCustomModel, isKeysLoaded } = useModelStore();
   const { setProposal, setActiveBranch } = useDiffStore();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
@@ -930,6 +1254,7 @@ export default function ChatScreen() {
   const [showModelSwitcher, setShowModelSwitcher] = useState(false);
   const [showGeminiKeyModal, setShowGeminiKeyModal] = useState(false);
   const [showGrokKeyModal, setShowGrokKeyModal] = useState(false);
+  const [showCustomModelModal, setShowCustomModelModal] = useState(false);
   const [activeStatus, setActiveStatus] = useState('Working on it...');
   const [activeMotivation, setActiveMotivation] = useState('Thinking about your request...');
   const [manualLoading, setManualLoading] = useState(false);
@@ -1176,6 +1501,14 @@ export default function ChatScreen() {
     handleModelSwitch(grokModel);
   };
 
+  const handleSaveCustomModel = async (input: { name: string; modelId: string; apiKey: string; endpoint: string }) => {
+    const model = buildCustomModel(input);
+    await addCustomModel(model);
+    setShowCustomModelModal(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    handleModelSwitch(model);
+  };
+
   // FAIL-SAFE: Manual Engine Link for environments where SDK hooks are partially stripped
   const manualEngineSend = async (content: string) => {
     // Add user message to UI immediately
@@ -1217,6 +1550,10 @@ export default function ChatScreen() {
           provider: selectedModel.provider,
           geminiApiKey: selectedModel.provider === 'gemini' ? geminiApiKey : undefined,
           grokApiKey: selectedModel.provider === 'grok' ? grokApiKey : undefined,
+          customApiKey: selectedModel.provider === 'custom' ? selectedModel.apiKey : undefined,
+          customEndpoint: selectedModel.provider === 'custom' ? selectedModel.endpoint : undefined,
+          customModelId: selectedModel.provider === 'custom' ? (selectedModel.modelId || selectedModel.name) : undefined,
+          customName: selectedModel.provider === 'custom' ? selectedModel.name : undefined,
         }),
       });
 
@@ -1505,8 +1842,11 @@ export default function ChatScreen() {
           onSelectModel={handleModelSwitch}
           geminiApiKey={geminiApiKey}
           grokApiKey={grokApiKey}
+          customModels={customModels}
           onRequestGeminiKey={() => setShowGeminiKeyModal(true)}
           onRequestGrokKey={() => setShowGrokKeyModal(true)}
+          onRequestAddCustom={() => setShowCustomModelModal(true)}
+          onRemoveCustom={(id) => removeCustomModel(id)}
         />
 
         {/* Gemini API Key Modal */}
@@ -1521,6 +1861,13 @@ export default function ChatScreen() {
           visible={showGrokKeyModal}
           onClose={() => setShowGrokKeyModal(false)}
           onSave={handleSaveGrokKey}
+        />
+
+        {/* Custom Model Modal */}
+        <AddCustomModelModal
+          visible={showCustomModelModal}
+          onClose={() => setShowCustomModelModal(false)}
+          onSave={handleSaveCustomModel}
         />
 
         <TodoModal 
