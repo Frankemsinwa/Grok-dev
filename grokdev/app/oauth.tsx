@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
-import Starfield from '../components/Starfield';
 import * as Linking from 'expo-linking';
+import { Colors, Font, Spacing } from '../constants/theme';
 
 import { API_BASE_URL } from '../constants/Config';
 
@@ -48,10 +48,9 @@ export default function OAuthCallback() {
 
   return (
     <View style={styles.container}>
-      <Starfield />
       <View style={styles.content}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
-        <Text style={styles.text}>AUTHENTICATING...</Text>
+        <ActivityIndicator size="large" color={Colors.accent} />
+        <Text style={styles.text}>Signing in...</Text>
       </View>
     </View>
   );
@@ -60,20 +59,19 @@ export default function OAuthCallback() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
-    padding: 20,
+    padding: Spacing.xl,
     alignItems: 'center',
   },
   text: {
-    color: '#FFFFFF',
-    marginTop: 20,
-    fontWeight: '900',
-    letterSpacing: 2,
-    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xl,
+    fontSize: Font.sizeMD,
+    fontFamily: Font.sans,
     textAlign: 'center',
   },
 });

@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { View, Text, Modal, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeOut, Layout } from 'react-native-reanimated';
+import { Colors, Font, Radius, Spacing } from '../constants/theme';
 
 export interface Todo {
   id: string;
@@ -21,19 +21,19 @@ export const TodoModal: React.FC<TodoModalProps> = ({ visible, onClose, todos, p
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Ionicons name="checkmark-circle" size={24} color="#4ade80" />;
+        return <Ionicons name="checkmark-circle" size={24} color={Colors.success} />;
       case 'in-progress':
-        return <Ionicons name="sync" size={24} color="#60a5fa" />;
+        return <Ionicons name="sync" size={24} color={Colors.accent} />;
       default:
-        return <Ionicons name="ellipse-outline" size={24} color="#94a3b8" />;
+        return <Ionicons name="ellipse-outline" size={24} color={Colors.textMuted} />;
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'completed': return 'COMPLETED';
-      case 'in-progress': return 'IN PROGRESS';
-      default: return 'PENDING';
+      case 'completed': return 'Completed';
+      case 'in-progress': return 'In progress';
+      default: return 'Pending';
     }
   };
 
@@ -41,101 +41,87 @@ export const TodoModal: React.FC<TodoModalProps> = ({ visible, onClose, todos, p
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.dismissArea} activeOpacity={1} onPress={onClose} />
-        <Animated.View 
-          entering={FadeInDown.springify()} 
+        <Animated.View
+          entering={FadeInDown.springify()}
           exiting={FadeOut}
           style={styles.container}
         >
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={80} tint="dark" style={styles.blur}>
-              <Content />
-            </BlurView>
-          ) : (
-            <View style={[styles.blur, { backgroundColor: '#0f172a' }]}>
-              <Content />
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={[styles.iconBox, { backgroundColor: `${providerColor}22`, borderColor: `${providerColor}44` }]}>
+                  <Ionicons name="list" size={20} color={providerColor} />
+                </View>
+                <View>
+                  <Text style={styles.title}>Task list</Text>
+                  <Text style={styles.subtitle}>{todos.length} steps to completion</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <Ionicons name="close" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
             </View>
-          )}
+
+            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+              {todos.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="checkmark-circle-outline" size={48} color={Colors.textMuted} />
+                  <Text style={styles.emptyText}>No tasks created yet.</Text>
+                </View>
+              ) : (
+                todos.map((todo, index) => (
+                  <Animated.View
+                    key={todo.id}
+                    layout={Layout.springify()}
+                    entering={FadeInDown.delay(index * 50)}
+                    style={[
+                      styles.todoItem,
+                      todo.status === 'completed' && styles.completedItem
+                    ]}
+                  >
+                    <View style={styles.todoIcon}>
+                      {getStatusIcon(todo.status)}
+                    </View>
+                    <View style={styles.todoContent}>
+                      <Text style={[
+                        styles.todoTitle,
+                        todo.status === 'completed' && styles.completedTitle
+                      ]}>
+                        {todo.title}
+                      </Text>
+                      <Text style={[
+                        styles.todoStatus,
+                        { color: todo.status === 'completed' ? Colors.success : todo.status === 'in-progress' ? Colors.accent : Colors.textMuted }
+                      ]}>
+                        {getStatusText(todo.status)}
+                      </Text>
+                    </View>
+                  </Animated.View>
+                ))
+              )}
+            </ScrollView>
+
+            <View style={styles.footer}>
+              <View style={styles.progressBarBg}>
+                <Animated.View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      backgroundColor: providerColor,
+                      width: `${(todos.filter(t => t.status === 'completed').length / (todos.length || 1)) * 100}%`
+                    }
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {Math.round((todos.filter(t => t.status === 'completed').length / (todos.length || 1)) * 100)}% complete
+              </Text>
+            </View>
+          </View>
         </Animated.View>
       </View>
     </Modal>
   );
-
-  function Content() {
-    return (
-      <>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.iconBox, { backgroundColor: `${providerColor}22`, borderColor: `${providerColor}44` }]}>
-              <Ionicons name="list" size={20} color={providerColor} />
-            </View>
-            <View>
-              <Text style={styles.title}>MISSION OBJECTIVES</Text>
-              <Text style={styles.subtitle}>{todos.length} steps to completion</Text>
-            </View>
-          </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Ionicons name="close" size={20} color="#64748b" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-          {todos.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="Construct-outline" size={48} color="#1e293b" />
-              <Text style={styles.emptyText}>No objectives established yet.</Text>
-            </View>
-          ) : (
-            todos.map((todo, index) => (
-              <Animated.View 
-                key={todo.id} 
-                layout={Layout.springify()}
-                entering={FadeInDown.delay(index * 50)}
-                style={[
-                    styles.todoItem,
-                    todo.status === 'completed' && styles.completedItem
-                ]}
-              >
-                <View style={styles.todoIcon}>
-                  {getStatusIcon(todo.status)}
-                </View>
-                <View style={styles.todoContent}>
-                  <Text style={[
-                    styles.todoTitle,
-                    todo.status === 'completed' && styles.completedTitle
-                  ]}>
-                    {todo.title}
-                  </Text>
-                  <Text style={[
-                    styles.todoStatus,
-                    { color: todo.status === 'completed' ? '#4ade80' : todo.status === 'in-progress' ? '#60a5fa' : '#64748b' }
-                  ]}>
-                    {getStatusText(todo.status)}
-                  </Text>
-                </View>
-              </Animated.View>
-            ))
-          )}
-        </ScrollView>
-        
-        <View style={styles.footer}>
-            <View style={styles.progressBarBg}>
-                <Animated.View 
-                    style={[
-                        styles.progressBarFill, 
-                        { 
-                            backgroundColor: providerColor,
-                            width: `${(todos.filter(t => t.status === 'completed').length / (todos.length || 1)) * 100}%` 
-                        }
-                    ]} 
-                />
-            </View>
-            <Text style={styles.progressText}>
-                {Math.round((todos.filter(t => t.status === 'completed').length / (todos.length || 1)) * 100)}% COMPLETE
-            </Text>
-        </View>
-      </>
-    );
-  }
 };
 
 const styles = StyleSheet.create({
@@ -144,80 +130,85 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.xl,
   },
   dismissArea: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   container: {
     width: '100%',
     maxHeight: '80%',
-    borderRadius: 24,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceElevated,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.5,
     shadowRadius: 30,
     elevation: 10,
   },
-  blur: {
-    padding: 24,
+  content: {
+    padding: Spacing.xxl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   iconBox: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
+    color: Colors.textPrimary,
+    fontSize: Font.sizeLG,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
   subtitle: {
-    color: '#64748b',
-    fontSize: 12,
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
   },
   closeBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   list: {
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   todoItem: {
     flexDirection: 'row',
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: Colors.border,
     marginBottom: 10,
     gap: 14,
   },
   completedItem: {
     opacity: 0.6,
-    backgroundColor: 'rgba(74, 222, 128, 0.03)',
+    backgroundColor: 'rgba(63, 185, 80, 0.03)',
   },
   todoIcon: {
     justifyContent: 'center',
@@ -226,54 +217,56 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   todoTitle: {
-    color: '#cbd5e1',
+    color: Colors.textPrimary,
     fontSize: 15,
     fontWeight: '500',
+    fontFamily: Font.sans,
     lineHeight: 20,
   },
   completedTitle: {
     textDecorationLine: 'line-through',
-    color: '#94a3b8',
+    color: Colors.textSecondary,
   },
   todoStatus: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
+    fontFamily: Font.sans,
     marginTop: 4,
-    letterSpacing: 1,
   },
   emptyState: {
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: Spacing.lg,
   },
   emptyText: {
-    color: '#475569',
-    fontSize: 14,
+    color: Colors.textMuted,
+    fontSize: Font.sizeMD,
     textAlign: 'center',
+    fontFamily: Font.sans,
   },
   footer: {
-      paddingTop: 16,
-      borderTopWidth: 1,
-      borderTopColor: 'rgba(255,255,255,0.05)',
-      alignItems: 'center',
+    paddingTop: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    alignItems: 'center',
   },
   progressBarBg: {
-      width: '100%',
-      height: 4,
-      backgroundColor: 'rgba(255,255,255,0.05)',
-      borderRadius: 2,
-      overflow: 'hidden',
-      marginBottom: 8,
+    width: '100%',
+    height: 4,
+    backgroundColor: Colors.surfaceMuted,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: Spacing.sm,
   },
   progressBarFill: {
-      height: '100%',
-      borderRadius: 2,
+    height: '100%',
+    borderRadius: 2,
   },
   progressText: {
-      color: '#64748b',
-      fontSize: 10,
-      fontWeight: 'bold',
-      letterSpacing: 1,
+    color: Colors.textSecondary,
+    fontSize: Font.sizeXS,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   }
 });

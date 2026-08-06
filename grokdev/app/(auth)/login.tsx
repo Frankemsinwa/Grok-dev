@@ -1,49 +1,15 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Image } from 'react-native';
 import * as Linking from 'expo-linking';
-import Starfield from '../../components/Starfield';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, withRepeat, withSequence } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors, Font, Radius, Spacing } from '../../constants/theme';
 
 const GROK_LOGO = require('../../assets/Grok-trans.png');
 
 const GITHUB_CLIENT_ID = process.env.EXPO_PUBLIC_GITHUB_CLIENT_ID;
 
 export default function LoginScreen() {
-
-  const logoScale = useSharedValue(0.8);
-  const contentOpacity = useSharedValue(0);
-  const contentTranslateY = useSharedValue(30);
-  const glowOpacity = useSharedValue(0.3);
-
-  useEffect(() => {
-    logoScale.value = withDelay(200, withTiming(1, { duration: 1000, easing: Easing.out(Easing.exp) }));
-    contentOpacity.value = withDelay(600, withTiming(1, { duration: 800 }));
-    contentTranslateY.value = withDelay(600, withTiming(0, { duration: 800, easing: Easing.out(Easing.back(1.5)) }));
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.6, { duration: 2000 }),
-        withTiming(0.3, { duration: 2000 })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  const logoAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: logoScale.value }]
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-    transform: [{ scale: glowOpacity.value }]
-  }));
-
-  const contentAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: contentOpacity.value,
-    transform: [{ translateY: contentTranslateY.value }]
-  }));
-
   const handleGitHubAuth = async () => {
     try {
       const redirectUri = Linking.createURL('oauth');
@@ -56,27 +22,29 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Starfield />
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.content}>
+          <View style={styles.logoContainer}>
+            <Image source={GROK_LOGO} style={styles.logo} resizeMode="contain" />
+          </View>
 
-      <View style={styles.inner}>
-        <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
-          <Animated.View style={[styles.glow, glowStyle]} />
-          <Image source={GROK_LOGO} style={styles.logoImage} resizeMode="contain" />
-        </Animated.View>
+          <Text style={styles.title}>Welcome</Text>
+          <Text style={styles.subtitle}>
+            Sign in to connect your GitHub repositories and start coding.
+          </Text>
 
-        <Animated.View style={[styles.content, contentAnimatedStyle]}>
           <View style={styles.card}>
             <TouchableOpacity style={styles.githubButton} onPress={handleGitHubAuth} activeOpacity={0.85}>
-              <Ionicons name="logo-github" size={24} color="#000" />
-              <Text style={styles.githubButtonText}>SIGN IN WITH GITHUB</Text>
+              <Ionicons name="logo-github" size={22} color="#fff" />
+              <Text style={styles.githubButtonText}>Continue with GitHub</Text>
             </TouchableOpacity>
 
             <Text style={styles.terms}>
-              By signing in, you authorize GrokDev to access your public repositories and user profile.
+              By continuing, you authorize GrokDev to access your repositories and user profile.
             </Text>
           </View>
-        </Animated.View>
-      </View>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
@@ -84,70 +52,69 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
-  inner: {
+  safe: {
+    flex: 1,
+  },
+  content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: Spacing.xxl,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 60,
+    marginBottom: Spacing.xxxl,
   },
-  glow: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#FFFFFF',
-    filter: 'blur(40px)',
-    zIndex: -1,
+  logo: {
+    width: 160,
+    height: 50,
   },
-  logoImage: {
-    width: 200,
-    height: 60,
+  title: {
+    color: Colors.textPrimary,
+    fontSize: Font.sizeXXXL,
+    fontWeight: '700',
+    fontFamily: Font.sans,
+    textAlign: 'center',
   },
-  content: {
-    width: '100%',
-    alignItems: 'center',
+  subtitle: {
+    color: Colors.textSecondary,
+    fontSize: Font.sizeLG,
+    fontFamily: Font.sans,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xxxl,
   },
   card: {
-    width: '100%',
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
-    borderRadius: 24,
-    padding: 32,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
+    borderColor: Colors.border,
+    padding: Spacing.xl,
   },
   githubButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    height: 56,
+    backgroundColor: Colors.accent,
+    borderRadius: Radius.md,
+    height: 54,
     width: '100%',
-    gap: 12,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    gap: Spacing.md,
   },
   githubButtonText: {
-    color: '#000',
-    fontWeight: '900',
-    fontSize: 14,
-    letterSpacing: 2,
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: Font.sizeLG,
+    fontFamily: Font.sans,
   },
   terms: {
-    color: '#475569',
-    fontSize: 12,
+    color: Colors.textMuted,
+    fontSize: Font.sizeSM,
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: Spacing.lg,
     lineHeight: 18,
-    paddingHorizontal: 10,
+    paddingHorizontal: Spacing.sm,
   },
 });

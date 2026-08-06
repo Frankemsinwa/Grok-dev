@@ -1,34 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView, Platform, Dimensions, TextInput, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView, TextInput, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useModelStore } from '../../store/modelStore';
 import { Ionicons } from '@expo/vector-icons';
-import Starfield from '../../components/Starfield';
-import { BlurView } from 'expo-blur';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Colors, Font, Radius, Spacing, Shadows } from '../../constants/theme';
 
-const { width } = Dimensions.get('window');
-
-const GlassSection = ({ children, title, index = 0 }: { children: React.ReactNode, title: string, index?: number }) => (
-    <Animated.View 
-        entering={FadeInDown.delay(index * 100).springify()}
-        style={styles.sectionContainer}
-    >
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <View style={styles.glassWrapper}>
-            {Platform.OS === 'ios' ? (
-                <BlurView intensity={20} tint="dark" style={styles.glassInner}>
-                    {children}
-                </BlurView>
-            ) : (
-                <View style={[styles.glassInner, { backgroundColor: 'rgba(30, 41, 59, 0.5)' }]}>
-                    {children}
-                </View>
-            )}
-        </View>
-    </Animated.View>
+const Section = ({ children, title }: { children: React.ReactNode, title: string }) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={[styles.sectionCard, Shadows.card]}>{children}</View>
+  </View>
 );
+
+const SectionRow = ({ children, onPress, last }: { children: React.ReactNode, onPress?: () => void, last?: boolean }) => {
+  const content = (
+    <View style={[styles.row, !last && styles.rowDivider]}>{children}</View>
+  );
+  return onPress ? (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>{content}</TouchableOpacity>
+  ) : content;
+};
 
 export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
@@ -43,17 +36,17 @@ export default function SettingsScreen() {
   const handleLogout = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
-      'TERMINATE SESSION',
-      'Are you sure you want to decouple your neural link?',
+      'Sign out',
+      'Are you sure you want to sign out?',
       [
-        { text: 'STAY', style: 'cancel' },
-        { 
-          text: 'LOGOUT', 
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
           onPress: async () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             await logout();
           },
-          style: 'destructive' 
+          style: 'destructive'
         },
       ]
     );
@@ -61,71 +54,84 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <Starfield />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.springify()} style={styles.header}>
-            <View style={styles.profileGlow} />
-            <View style={styles.avatarContainer}>
-                <Ionicons name="person" size={40} color="#FFFFFF" />
-            </View>
-            <Text style={styles.username}>{user?.username?.toUpperCase() || 'AGENT'}</Text>
-            <Text style={styles.email}>{user?.email}</Text>
-        </Animated.View>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Settings</Text>
+          </View>
 
-        <GlassSection title="GitHub Identity" index={1}>
-            <View style={styles.row}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Ionicons name="logo-github" size={28} color="#fff" />
-                    <View>
-                        <Text style={styles.rowTitle}>{user?.username || 'UNKNOWN'}</Text>
-                        <Text style={[styles.rowStatus, { color: '#4ade80' }]}>CONNECTED</Text>
-                    </View>
-                </View>
-                <View style={[styles.badge, { borderColor: 'rgba(74, 222, 128, 0.4)', backgroundColor: 'rgba(74, 222, 128, 0.1)' }]}>
-                    <Text style={[styles.badgeText, { color: '#4ade80' }]}>AUTH'D</Text>
-                </View>
-            </View>
-        </GlassSection>
+          {/* Profile */}
+          <Section title="Profile">
+            <SectionRow>
+              <View style={styles.avatarContainer}>
+                <Ionicons name="person" size={28} color={Colors.textPrimary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>{user?.username || 'Developer'}</Text>
+                <Text style={styles.rowSubtitle}>{user?.email || 'Signed in with GitHub'}</Text>
+              </View>
+            </SectionRow>
+          </Section>
 
-        <GlassSection title="Neural Core" index={2}>
-            <View style={styles.row}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: selectedModel.accentColor, borderWidth: 1, borderColor: `${selectedModel.color}44`, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                        <Image source={selectedModel.logo} style={{ width: selectedModel.logoRound ? 40 : 24, height: selectedModel.logoRound ? 40 : 24, borderRadius: selectedModel.logoRound ? 20 : 0 }} resizeMode="cover" />
-                    </View>
-                    <View>
-                        <Text style={styles.rowTitle}>{selectedModel.name}</Text>
-                        <Text style={[styles.rowStatus, { color: selectedModel.color }]}>{selectedModel.provider === 'gemini' ? 'GOOGLE AI' : 'xAI'}</Text>
-                    </View>
+          {/* Account */}
+          <Section title="Account">
+            <SectionRow last>
+              <View style={styles.rowLeading}>
+                <Ionicons name="logo-github" size={22} color={Colors.textPrimary} />
+                <View>
+                  <Text style={styles.rowTitle}>GitHub</Text>
+                  <Text style={styles.rowStatus}>Connected</Text>
                 </View>
-                <View style={[styles.badge, { borderColor: `${selectedModel.color}66`, backgroundColor: selectedModel.accentColor }]}>
-                    <Text style={[styles.badgeText, { color: selectedModel.color }]}>ACTIVE</Text>
-                </View>
-            </View>
-        </GlassSection>
+              </View>
+              <View style={[styles.badge, { backgroundColor: Colors.success, borderColor: Colors.success }]}>
+                <Text style={styles.badgeText}>Active</Text>
+              </View>
+            </SectionRow>
+          </Section>
 
-        <GlassSection title="Gemini API Key" index={3}>
+          {/* Model */}
+          <Section title="AI Model">
+            <SectionRow last>
+              <View style={styles.rowLeading}>
+                <View style={[styles.modelLogoBox, { backgroundColor: selectedModel.accentColor }]}>
+                  <Image source={selectedModel.logo} style={{ width: selectedModel.logoRound ? 34 : 22, height: selectedModel.logoRound ? 34 : 22, borderRadius: selectedModel.logoRound ? 17 : 0 }} resizeMode="cover" />
+                </View>
+                <View>
+                  <Text style={styles.rowTitle}>{selectedModel.name}</Text>
+                  <Text style={styles.rowStatus}>
+                    {selectedModel.provider === 'gemini' ? 'Google AI' : 'xAI'}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.badge, { backgroundColor: Colors.accentMuted, borderColor: Colors.accent }]}>
+                <Text style={[styles.badgeText, { color: Colors.accent }]}>Active</Text>
+              </View>
+            </SectionRow>
+          </Section>
+
+          {/* Gemini API Key */}
+          <Section title="Gemini API Key">
             {geminiApiKey ? (
               <>
-                <View style={styles.row}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Ionicons name="shield-checkmark" size={20} color="#4ade80" />
+                <SectionRow>
+                  <View style={styles.rowLeading}>
+                    <Ionicons name="shield-checkmark" size={20} color={Colors.success} />
                     <View>
-                      <Text style={styles.rowTitle}>Key Configured</Text>
-                      <Text style={[styles.rowStatus, { color: '#4ade80' }]}>SAVED ON DEVICE</Text>
+                      <Text style={styles.rowTitle}>Key configured</Text>
+                      <Text style={styles.rowStatus}>Saved on this device</Text>
                     </View>
                   </View>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
                     <TouchableOpacity
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setShowKeyInput(true);
                         setNewApiKey('');
                       }}
-                      style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(56, 189, 248, 0.25)' }}
+                      style={styles.smallBtn}
                     >
-                      <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }}>CHANGE</Text>
+                      <Text style={[styles.smallBtnText, { color: Colors.accent }]}>Change</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => {
@@ -141,26 +147,26 @@ export default function SettingsScreen() {
                           ]
                         );
                       }}
-                      style={{ backgroundColor: 'rgba(248, 113, 113, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(248, 113, 113, 0.25)' }}
+                      style={styles.smallBtn}
                     >
-                      <Text style={{ color: '#f87171', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }}>REMOVE</Text>
+                      <Text style={[styles.smallBtnText, { color: Colors.danger }]}>Remove</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-                <View style={[styles.row, { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }]}>
-                  <Text style={{ color: '#334155', fontSize: 12, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>••••••••{geminiApiKey.slice(-6)}</Text>
-                </View>
+                </SectionRow>
+                <SectionRow last>
+                  <Text style={styles.monoText}>••••••••{geminiApiKey.slice(-6)}</Text>
+                </SectionRow>
               </>
             ) : showKeyInput ? (
-              <>
-                <Text style={{ color: '#94a3b8', fontSize: 12, marginBottom: 12 }}>Enter your Google AI API key from aistudio.google.com</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View>
+                <Text style={styles.hintText}>Enter your Google AI API key from aistudio.google.com</Text>
+                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
                   <TextInput
-                    style={{ flex: 1, backgroundColor: '#0f172a', color: '#fff', padding: 12, borderRadius: 10, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}
+                    style={styles.keyInput}
                     value={newApiKey}
                     onChangeText={setNewApiKey}
                     placeholder="AIzaSy..."
-                    placeholderTextColor="#334155"
+                    placeholderTextColor={Colors.textMuted}
                     autoCapitalize="none"
                     autoCorrect={false}
                     secureTextEntry
@@ -177,43 +183,41 @@ export default function SettingsScreen() {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     }}
                     disabled={newApiKey.trim().length < 10}
-                    style={{ backgroundColor: '#4285F4', width: 48, borderRadius: 10, justifyContent: 'center', alignItems: 'center', opacity: newApiKey.trim().length < 10 ? 0.4 : 1 }}
+                    style={[styles.saveBtn, newApiKey.trim().length < 10 && { opacity: 0.4 }]}
                   >
                     <Ionicons name="checkmark" size={22} color="#fff" />
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={() => { setShowKeyInput(false); setNewApiKey(''); }} style={{ marginTop: 10 }}>
-                  <Text style={{ color: '#64748b', fontSize: 12, textAlign: 'center' }}>Cancel</Text>
+                <TouchableOpacity onPress={() => { setShowKeyInput(false); setNewApiKey(''); }} style={{ marginTop: Spacing.md }}>
+                  <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-              </>
+              </View>
             ) : (
-              <TouchableOpacity
-                onPress={() => setShowKeyInput(true)}
-                style={styles.row}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Ionicons name="key" size={20} color="#FBBF24" />
+              <SectionRow last onPress={() => setShowKeyInput(true)}>
+                <View style={styles.rowLeading}>
+                  <Ionicons name="key" size={20} color={Colors.warning} />
                   <View>
-                    <Text style={styles.rowTitle}>Add Gemini Key</Text>
-                    <Text style={[styles.rowStatus, { color: '#64748b' }]}>Enable Google Gemini models</Text>
+                    <Text style={styles.rowTitle}>Add Gemini key</Text>
+                    <Text style={styles.rowStatus}>Enable Google Gemini models</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#334155" />
-              </TouchableOpacity>
+                <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+              </SectionRow>
             )}
-        </GlassSection>
+          </Section>
 
-        <Animated.View entering={FadeInDown.delay(500).springify()}>
-            <TouchableOpacity 
-                style={styles.logoutButton}
-                onPress={handleLogout}
-            >
-                <Text style={styles.logoutText}>TERMINATE SESSION</Text>
-            </TouchableOpacity>
-        </Animated.View>
+          {/* Sign out */}
+          <TouchableOpacity
+            style={[styles.logoutButton, Shadows.card]}
+            onPress={handleLogout}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.logoutText}>Sign out</Text>
+          </TouchableOpacity>
 
-        <Text style={styles.version}>GROKDEV OS v1.0.43 • KERNEL: {selectedModel.name.toUpperCase()}</Text>
-      </ScrollView>
+          <Text style={styles.version}>GrokDev v1.0.43</Text>
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -221,135 +225,169 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 60,
+    padding: Spacing.xl,
     paddingBottom: 120,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 40,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xl,
   },
-  profileGlow: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#FFFFFF',
-    filter: 'blur(30px)',
-    opacity: 0.4,
-    top: 0,
+  headerTitle: {
+    color: Colors.textPrimary,
+    fontSize: Font.sizeXXL,
+    fontWeight: '700',
+    fontFamily: Font.sans,
   },
-  avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(30, 41, 59, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    marginBottom: 16,
-  },
-  username: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  email: {
-    color: '#64748b',
-    fontSize: 14,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  sectionContainer: {
-    marginBottom: 24,
+  section: {
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginBottom: 10,
-    marginLeft: 4,
-    textTransform: 'uppercase',
+    color: Colors.textSecondary,
+    fontSize: Font.sizeMD,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+    marginBottom: Spacing.sm,
+    marginLeft: Spacing.xs,
   },
-  glassWrapper: {
-    borderRadius: 20,
-    overflow: 'hidden',
+  sectionCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  glassInner: {
-    padding: 20,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.lg,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: Spacing.lg,
   },
-  label: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  rowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  value: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 4,
+  rowLeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
   },
   rowTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    fontSize: Font.sizeMD,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+  },
+  rowSubtitle: {
+    color: Colors.textMuted,
+    fontSize: Font.sizeSM,
+    fontFamily: Font.sans,
+    marginTop: 2,
   },
   rowStatus: {
-    fontSize: 12,
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
     marginTop: 2,
-    fontWeight: '700',
-    letterSpacing: 0.5,
   },
-  badge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  logoutButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    height: 60,
-    borderRadius: 20,
+    borderColor: Colors.border,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+  },
+  modelLogoBox: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  badge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  badgeText: {
+    color: Colors.white,
+    fontSize: Font.sizeXS,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+  },
+  smallBtn: {
+    backgroundColor: Colors.surfaceMuted,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  smallBtnText: {
+    fontSize: Font.sizeXS,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+  },
+  monoText: {
+    color: Colors.textMuted,
+    fontSize: Font.sizeSM,
+    fontFamily: Font.mono,
+  },
+  hintText: {
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
+    marginBottom: Spacing.md,
+  },
+  keyInput: {
+    flex: 1,
+    backgroundColor: Colors.surfaceMuted,
+    color: Colors.textPrimary,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    fontFamily: Font.mono,
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  saveBtn: {
+    backgroundColor: Colors.accent,
+    width: 48,
+    borderRadius: Radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelText: {
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
+    textAlign: 'center',
+  },
+  logoutButton: {
+    backgroundColor: Colors.surface,
+    height: 56,
+    borderRadius: Radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   logoutText: {
-    color: '#ef4444',
-    fontWeight: '900',
-    letterSpacing: 2,
-    fontSize: 14,
+    color: Colors.danger,
+    fontWeight: '600',
+    fontSize: Font.sizeMD,
+    fontFamily: Font.sans,
   },
   version: {
-    color: '#334155',
-    fontSize: 10,
+    color: Colors.textMuted,
+    fontSize: Font.sizeXS,
     textAlign: 'center',
-    marginTop: 30,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+    marginTop: Spacing.xxl,
   }
 });

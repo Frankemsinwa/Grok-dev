@@ -27,15 +27,8 @@ import Animated, {
   FadeInDown,
   FadeOut,
   SlideInRight,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  withSequence,
-  withRepeat,
-  Easing,
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import { Colors, Font, Radius, Spacing } from '../constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { API_BASE_URL } from '../constants/Config';
@@ -138,9 +131,9 @@ function AutocompleteBar({
 
 const autocompleteStyles = StyleSheet.create({
   container: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.surfaceElevated,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: Colors.border,
     height: 40,
   },
   item: {
@@ -420,8 +413,8 @@ function CommitModal({
           {/* Header Row */}
           <View style={commitStyles.header}>
             <View style={commitStyles.headerLeft}>
-              <Ionicons name="git-commit" size={20} color="#fff" />
-              <Text style={commitStyles.title}>COMMIT & PUSH</Text>
+              <Ionicons name="git-commit" size={20} color={Colors.accent} />
+              <Text style={commitStyles.title}>Commit & Push</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={commitStyles.closeBtn}>
               <Ionicons name="close" size={20} color="#64748b" />
@@ -463,11 +456,11 @@ function CommitModal({
             ]}
           >
             {loading ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color="#fff" />
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="cloud-upload" size={18} color="#000" />
-                <Text style={commitStyles.commitBtnText}>PUSH TO {branch.toUpperCase()}</Text>
+                <Ionicons name="cloud-upload" size={18} color="#fff" />
+                <Text style={commitStyles.commitBtnText}>Push to {branch}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -484,18 +477,18 @@ const commitStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#0f172a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+    backgroundColor: Colors.surfaceElevated,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.xxl,
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -503,93 +496,93 @@ const commitStyles = StyleSheet.create({
     gap: 10,
   },
   title: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
+    color: Colors.textPrimary,
+    fontSize: Font.sizeLG,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
   closeBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1e293b',
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   branchRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
     flexWrap: 'wrap',
   },
   branchPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 12,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: Radius.pill,
   },
   branchText: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: Font.sans,
   },
   filePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(97, 175, 239, 0.08)',
+    backgroundColor: Colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(97, 175, 239, 0.2)',
-    paddingHorizontal: 12,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: Radius.pill,
     flexShrink: 1,
   },
   fileText: {
-    color: '#61AFEF',
+    color: Colors.accent,
     fontSize: 13,
+    fontFamily: Font.sans,
     flexShrink: 1,
   },
   label: {
-    color: '#64748b',
+    color: Colors.textSecondary,
     fontSize: 11,
-    letterSpacing: 1.5,
-    fontWeight: '700',
-    marginBottom: 8,
+    letterSpacing: 1,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+    marginBottom: Spacing.sm,
   },
   input: {
-    backgroundColor: '#1e293b',
-    color: '#fff',
-    borderRadius: 12,
+    backgroundColor: Colors.surfaceMuted,
+    color: Colors.textPrimary,
+    borderRadius: Radius.md,
     padding: 14,
     fontSize: 15,
     minHeight: 80,
     textAlignVertical: 'top',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.border,
+    fontFamily: Font.sans,
   },
   commitBtn: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: Colors.accent,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
     alignItems: 'center',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
   },
   commitBtnText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: 'bold',
-    letterSpacing: 1.2,
+    color: '#fff',
+    fontSize: Font.sizeMD,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+    textTransform: 'capitalize',
   },
 });
 
@@ -655,11 +648,11 @@ const searchStyles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 50,
-    backgroundColor: '#1a1f2e',
+    backgroundColor: Colors.surfaceElevated,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
   inner: {
     flexDirection: 'row',
@@ -717,24 +710,6 @@ export default function EditorScreen() {
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const scrollRef = useRef<ScrollView>(null);
   const editRef = useRef<TextInput>(null);
-
-  // Animation
-  const headerGlow = useSharedValue(0);
-
-  useEffect(() => {
-    headerGlow.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  const glowStyle = useAnimatedStyle(() => ({
-    shadowOpacity: 0.2 + headerGlow.value * 0.4,
-  }));
 
   // Parse data
   const filePath = currentFile?.path || '';
@@ -971,7 +946,7 @@ export default function EditorScreen() {
           style={{ flex: 1 }}
         >
           {/* ─── Top Header ──────────────────────────────────── */}
-          <Animated.View style={[styles.header, glowStyle]}>
+          <View style={styles.header}>
             {/* Back button */}
             <TouchableOpacity onPress={handleGoBack} style={styles.headerBtn}>
               <Ionicons name="chevron-back" size={22} color="#fff" />
@@ -1011,11 +986,11 @@ export default function EditorScreen() {
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity onPress={startEditing} style={styles.editBtn} disabled={isProcessing}>
-                  {isProcessing ? <ActivityIndicator size="small" color="#000" /> : <Ionicons name="pencil" size={16} color="#000" />}
+                  {isProcessing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="pencil" size={16} color="#fff" />}
                 </TouchableOpacity>
               )}
             </View>
-          </Animated.View>
+          </View>
 
           {/* ─── Branch / Path Bar ───────────────────────────── */}
           <View style={styles.pathBar}>
@@ -1029,7 +1004,7 @@ export default function EditorScreen() {
             </ScrollView>
             {hasChanges && (
               <Animated.View entering={FadeIn} style={styles.modifiedBadge}>
-                <Text style={styles.modifiedText}>MODIFIED</Text>
+                <Text style={styles.modifiedText}>Modified</Text>
               </Animated.View>
             )}
           </View>
@@ -1080,8 +1055,7 @@ export default function EditorScreen() {
                         spellCheck={false}
                         textAlignVertical="top"
                         scrollEnabled={false}
-                        cursorColor="#61AFEF"
-                        includeFontPadding={false}
+                        cursorColor={Colors.accent}
                       />
                     </View>
                   </View>
@@ -1232,11 +1206,11 @@ function formatBytes(bytes: number): string {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: Colors.background,
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: Colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1246,31 +1220,28 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   emptyBtn: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 20,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    marginTop: Spacing.xl,
   },
   emptyBtnText: {
-    color: '#000',
-    fontWeight: 'bold',
+    color: '#fff',
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
 
   // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: Spacing.md,
     paddingVertical: 10,
-    backgroundColor: '#161b22',
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 4,
-    gap: 8,
+    borderBottomColor: Colors.border,
+    gap: Spacing.sm,
   },
   headerBtn: {
     width: 36,
@@ -1330,27 +1301,22 @@ const styles = StyleSheet.create({
   editBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+    borderRadius: Radius.md,
+    backgroundColor: Colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
   },
 
   // Path bar
   pathBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#111621',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surfaceMuted,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
-    gap: 6,
+    borderBottomColor: Colors.border,
+    gap: Spacing.sm,
   },
   branchChip: {
     flexDirection: 'row',
@@ -1392,11 +1358,11 @@ const styles = StyleSheet.create({
   editorWrapper: {
     flex: 1,
     position: 'relative',
-    backgroundColor: '#0d1117',
+    backgroundColor: Colors.background,
   },
   editorScroll: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: Colors.background,
   },
   editInput: {
     color: '#ABB2BF',
@@ -1420,9 +1386,9 @@ const styles = StyleSheet.create({
 
   // Bottom toolbar
   toolbar: {
-    backgroundColor: '#161b22',
+    backgroundColor: Colors.surface,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: Colors.border,
     paddingBottom: Platform.OS === 'ios' ? 20 : 10,
   },
   toolbarInner: {
@@ -1458,21 +1424,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: 10,
-    borderRadius: 10,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: Radius.md,
   },
   commitTriggerText: {
-    color: '#000',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1,
+    color: '#fff',
+    fontSize: Font.sizeSM,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
   statChip: {
     flexDirection: 'row',

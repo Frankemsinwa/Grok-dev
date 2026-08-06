@@ -2,17 +2,18 @@ import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, SafeAreaView, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { 
-  useAnimatedScrollHandler, 
-  useSharedValue, 
-  useAnimatedStyle, 
-  interpolate, 
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
   Extrapolate,
   withTiming,
   Easing,
-  runOnJS
+  runOnJS,
+  type SharedValue,
 } from 'react-native-reanimated';
-import Starfield from './Starfield';
+import { Colors, Font, Radius, Spacing } from '../constants/theme';
 
 const GROK_LOGO = require('../assets/Grok-trans.png');
 
@@ -20,29 +21,26 @@ const { width, height } = Dimensions.get('window');
 
 const SLIDES = [
   {
-    title: 'Code Anywhere',
-    subtitle: 'THE OFFICE IS WHERE YOU ARE',
-    description: 'A professional-grade IDE in your pocket. Connect, browse, and edit your GitHub repositories with zero friction.',
-    color: '#FFFFFF', // White Branding
+    title: 'Code anywhere',
+    subtitle: 'A professional IDE in your pocket',
+    description: 'Connect, browse, and edit your GitHub repositories with zero friction.',
   },
   {
-    title: 'Beyond Chat',
-    subtitle: 'CO-PILOTED BY GROK-3',
-    description: 'Not just a chatbot. GrokDev is an agent that can read your entire repo, write features, and hunt down bugs.',
-    color: '#22D3EE', // Terminal Cyan
+    title: 'Beyond chat',
+    subtitle: 'Co-piloted by Grok-3',
+    description: 'GrokDev is an agent that can read your entire repo, write features, and hunt down bugs.',
   },
   {
-    title: 'Ship Smarter',
-    subtitle: 'COMMIT WITH CONFIDENCE',
-    description: 'Review changes in a world-class diff viewer and push directly to GitHub. Ship code on the go, anytime.',
-    color: '#fff', 
+    title: 'Ship smarter',
+    subtitle: 'Commit with confidence',
+    description: 'Review changes in a clean diff viewer and push directly to GitHub. Ship code on the go.',
   }
 ];
 
-const Slide = ({ slide, index, scrollX }: { slide: typeof SLIDES[0], index: number, scrollX: Animated.SharedValue<number> }) => {
+const Slide = ({ slide, index, scrollX }: { slide: typeof SLIDES[0], index: number, scrollX: SharedValue<number> }) => {
   const animatedStyle = useAnimatedStyle(() => {
     const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
-    
+
     const opacity = interpolate(
       scrollX.value,
       inputRange,
@@ -53,39 +51,20 @@ const Slide = ({ slide, index, scrollX }: { slide: typeof SLIDES[0], index: numb
     const translateY = interpolate(
       scrollX.value,
       inputRange,
-      [100, 0, -100],
-      Extrapolate.CLAMP
-    );
-
-    const scale = interpolate(
-      scrollX.value,
-      inputRange,
-      [0.8, 1, 0.8],
+      [40, 0, -40],
       Extrapolate.CLAMP
     );
 
     return {
       opacity,
-      transform: [{ translateY }, { scale }]
+      transform: [{ translateY }]
     };
-  });
-
-  const subtitleStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-        scrollX.value,
-        [(index - 0.5) * width, index * width, (index + 0.5) * width],
-        [0, 1, 0],
-        Extrapolate.CLAMP
-      );
-    return { opacity };
   });
 
   return (
     <View style={styles.slideContainer}>
       <Animated.View style={[styles.content, animatedStyle]}>
-        <Animated.Text style={[styles.subtitle, { color: slide.color, fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace' }, subtitleStyle]}>
-          {slide.subtitle}
-        </Animated.Text>
+        <Text style={styles.subtitle}>{slide.subtitle}</Text>
         <Text style={styles.title}>{slide.title}</Text>
         <Text style={styles.description}>{slide.description}</Text>
       </Animated.View>
@@ -95,7 +74,6 @@ const Slide = ({ slide, index, scrollX }: { slide: typeof SLIDES[0], index: numb
 
 export default function Onboarding({ visible, onFinish }: { visible: boolean, onFinish: () => void }) {
   const scrollX = useSharedValue(0);
-  const speed = useSharedValue(1);
   const opacity = useSharedValue(1);
   const scrollViewRef = useRef<Animated.ScrollView>(null);
 
@@ -107,8 +85,7 @@ export default function Onboarding({ visible, onFinish }: { visible: boolean, on
 
   const handleFinish = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    speed.value = withTiming(10, { duration: 1000, easing: Easing.in(Easing.quad) });
-    opacity.value = withTiming(0, { duration: 1000 }, () => {
+    opacity.value = withTiming(0, { duration: 400, easing: Easing.in(Easing.quad) }, () => {
       runOnJS(onFinish)();
     });
   };
@@ -126,20 +103,18 @@ export default function Onboarding({ visible, onFinish }: { visible: boolean, on
   if (!visible) return null;
 
   const activeIndexStyle = useAnimatedStyle(() => {
-      return {
-          opacity: opacity.value
-      };
+    return {
+      opacity: opacity.value
+    };
   });
 
   return (
     <Animated.View style={[styles.container, activeIndexStyle]}>
-      <Starfield scrollX={scrollX} speed={speed} />
-      
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.topBar}>
           <Image source={GROK_LOGO} style={styles.headerLogo} resizeMode="contain" />
-          <TouchableOpacity onPress={onFinish}>
-            <Text style={styles.skip}>SKIP</Text>
+          <TouchableOpacity onPress={handleFinish}>
+            <Text style={styles.skip}>Skip</Text>
           </TouchableOpacity>
         </View>
 
@@ -177,7 +152,7 @@ export default function Onboarding({ visible, onFinish }: { visible: boolean, on
                 return {
                   width: dotWidth,
                   opacity: dotOpacity,
-                  backgroundColor: SLIDES[i].color
+                  backgroundColor: Colors.accent
                 };
               });
               return <Animated.View key={i} style={[styles.dot, dotStyle]} />;
@@ -185,10 +160,12 @@ export default function Onboarding({ visible, onFinish }: { visible: boolean, on
           </View>
 
           <TouchableOpacity style={styles.button} onPress={nextSlide}>
-            <Animated.View style={[styles.buttonInner, { backgroundColor: '#fff' }]}>
-              <Text style={styles.buttonText}>CONTINUE</Text>
-              <Ionicons name="arrow-forward" size={24} color="#000" style={{ marginLeft: 12 }} />
-            </Animated.View>
+            <View style={styles.buttonInner}>
+              <Text style={styles.buttonText}>
+                {Math.floor(scrollX.value / width) + 1 >= SLIDES.length ? 'Get started' : 'Continue'}
+              </Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: Spacing.md }} />
+            </View>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -198,8 +175,12 @@ export default function Onboarding({ visible, onFinish }: { visible: boolean, on
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.background,
     zIndex: 1000,
   },
   safeArea: {
@@ -208,30 +189,21 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingLeft: 0,
-    paddingRight: 30,
+    paddingRight: Spacing.xxl,
     paddingTop: 40,
+    paddingLeft: Spacing.xl,
     alignItems: 'center',
     zIndex: 10,
   },
   headerLogo: {
-    width: 140,
-    height: 48,
-  },
-  logo: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace',
-    letterSpacing: 2,
+    width: 120,
+    height: 42,
   },
   skip: {
-    color: '#64748B',
-    fontSize: 14,
-    fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
+    color: Colors.textSecondary,
+    fontSize: Font.sizeMD,
+    fontWeight: '500',
+    fontFamily: Font.sans,
   },
   scrollView: {
     flex: 1,
@@ -240,71 +212,64 @@ const styles = StyleSheet.create({
     width: width,
     height: '100%',
     justifyContent: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: Spacing.xxl,
   },
   content: {
     alignItems: 'flex-start',
   },
   subtitle: {
-    fontSize: 14,
-    fontWeight: '400',
-    letterSpacing: 1.4,
-    marginBottom: 12,
-    textTransform: 'uppercase',
+    color: Colors.accent,
+    fontSize: Font.sizeMD,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+    marginBottom: Spacing.md,
   },
   title: {
-    color: '#fff',
-    fontSize: 48,
-    fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
-    marginBottom: 20,
+    color: Colors.textPrimary,
+    fontSize: 44,
+    fontWeight: '700',
+    fontFamily: Font.sans,
+    marginBottom: Spacing.xl,
     letterSpacing: -1,
-    lineHeight: 56,
+    lineHeight: 52,
   },
   description: {
-    color: '#94a3b8',
-    fontSize: 20,
-    lineHeight: 32,
-    fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    color: Colors.textSecondary,
+    fontSize: Font.sizeLG,
+    lineHeight: 28,
+    fontFamily: Font.sans,
   },
   footer: {
-    paddingHorizontal: 30,
+    paddingHorizontal: Spacing.xxl,
     paddingBottom: Platform.OS === 'ios' ? 20 : 40,
   },
   pagination: {
     flexDirection: 'row',
-    marginBottom: 40,
+    marginBottom: Spacing.xxl,
     height: 8,
     alignItems: 'center',
   },
   dot: {
     height: 8,
     borderRadius: 4,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   button: {
     width: '100%',
-    height: 72,
+    height: 56,
   },
   buttonInner: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.accent,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: "#fff",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
   },
   buttonText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
+    color: '#fff',
+    fontSize: Font.sizeMD,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
 });

@@ -10,20 +10,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDiffStore } from '../../../store/diffStore';
-import Starfield from '../../../components/Starfield';
-import { BlurView } from 'expo-blur';
 import * as Clipboard from 'expo-clipboard';
+import { Colors, Font, Radius, Spacing, Shadows } from '../../../constants/theme';
 import Animated, { 
   FadeInDown, 
   FadeInRight, 
   FadeIn,
   FadeOut,
   Layout, 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withSpring,
-  withTiming,
-  Easing
 } from 'react-native-reanimated';
 import { TodoModal, type Todo } from '../../../components/TodoModal';
 
@@ -32,15 +26,7 @@ import { API_BASE_URL } from '../../../constants/Config';
 
 const GlassBox = ({ children, style, intensity = 25 }: { children: React.ReactNode, style?: any, intensity?: number }) => (
     <View style={[styles.glass, style]}>
-        {Platform.OS === 'ios' ? (
-            <BlurView intensity={intensity} tint="dark" style={styles.blur}>
-                {children}
-            </BlurView>
-        ) : (
-            <View style={[styles.blur, { backgroundColor: 'rgba(15, 23, 42, 0.8)' }]}>
-                {children}
-            </View>
-        )}
+        {children}
     </View>
 );
 
@@ -81,7 +67,7 @@ const MessageBubble = React.memo(({ item, isUser, messages, setProposal, setActi
                 <Ionicons name="flash" size={12} color={providerColor} />
                 <Text style={[styles.toolName, { color: providerColor }]}>{toolCall.toolName.toUpperCase()}</Text>
             </View>
-            <Text style={{ color: '#94a3b8', fontSize: 12, fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace', letterSpacing: 1 }} numberOfLines={1}>
+            <Text style={{ color: Colors.textSecondary, fontSize: 12, fontFamily: Font.mono }} numberOfLines={1}>
               {JSON.stringify(toolCall.args)}
             </Text>
             {['get_file_diff', 'write_file', 'create_file'].includes(toolCall.toolName) && (
@@ -187,7 +173,7 @@ const MessageBubble = React.memo(({ item, isUser, messages, setProposal, setActi
                 }}
                 style={[styles.diffButton, { backgroundColor: providerColor }]}
               >
-                <Text style={styles.diffButtonText}>REVIEW CHANGES</Text>
+                <Text style={styles.diffButtonText}>Review changes</Text>
               </TouchableOpacity>
             )}
           </GlassBox>
@@ -203,9 +189,9 @@ const MessageBubble = React.memo(({ item, isUser, messages, setProposal, setActi
         >
             {!isUser && <View style={[styles.aiAccent, { backgroundColor: providerColor }]} />}
             <Markdown style={{
-                body: { color: isUser ? '#000' : '#cbd5e1', fontSize: 16, lineHeight: 24, fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif' },
-                code_inline: { backgroundColor: `${providerColor}18`, color: providerColor, borderRadius: 4, padding: 3, fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace' },
-                code_block: { backgroundColor: '#000', color: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: `${providerColor}33`, fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace' },
+                body: { color: isUser ? '#000' : '#cbd5e1', fontSize: 16, lineHeight: 24, fontFamily: Font.sans },
+                code_inline: { backgroundColor: `${providerColor}18`, color: providerColor, borderRadius: 4, padding: 3, fontFamily: Font.mono },
+                code_block: { backgroundColor: '#000', color: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: `${providerColor}33`, fontFamily: Font.mono },
                 fence: { backgroundColor: '#000', color: '#fff', padding: 12, borderRadius: 12 },
                 link: { color: providerColor },
                 strong: { color: '#fff', fontWeight: 'bold' },
@@ -244,8 +230,8 @@ function GeminiKeyModal({
                 <Image source={require('../../../assets/gemini.webp')} style={{ width: 24, height: 24 }} resizeMode="contain" />
               </View>
               <View>
-                <Text style={geminiStyles.title}>GEMINI UPLINK</Text>
-                <Text style={geminiStyles.subtitle}>Connect your Google AI API key</Text>
+                <Text style={geminiStyles.title}>Connect Gemini</Text>
+                <Text style={geminiStyles.subtitle}>Enter your Google AI API key</Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={geminiStyles.closeBtn}>
@@ -262,7 +248,7 @@ function GeminiKeyModal({
           </View>
 
           {/* Key Input */}
-          <Text style={geminiStyles.label}>GOOGLE AI API KEY</Text>
+          <Text style={geminiStyles.label}>Google AI API key</Text>
           <View style={geminiStyles.inputRow}>
             <TextInput
               style={geminiStyles.input}
@@ -307,7 +293,7 @@ function GeminiKeyModal({
             ]}
           >
             <Ionicons name="checkmark-circle" size={18} color="#fff" />
-            <Text style={geminiStyles.saveBtnText}>SAVE & ACTIVATE</Text>
+            <Text style={geminiStyles.saveBtnText}>Save & activate</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -323,11 +309,11 @@ const geminiStyles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   sheet: {
-    backgroundColor: '#0f172a',
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: Radius.xl,
+    padding: Spacing.xxl,
     borderWidth: 1,
-    borderColor: 'rgba(66, 133, 244, 0.25)',
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -344,28 +330,28 @@ const geminiStyles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(66, 133, 244, 0.12)',
+    backgroundColor: Colors.accentMuted,
     borderWidth: 1,
-    borderColor: 'rgba(66, 133, 244, 0.3)',
+    borderColor: Colors.borderStrong,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
   subtitle: {
-    color: '#64748b',
-    fontSize: 12,
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
     marginTop: 2,
   },
   closeBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1e293b',
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -373,12 +359,12 @@ const geminiStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: 'rgba(74, 222, 128, 0.06)',
+    backgroundColor: Colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.15)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.xl,
   },
   infoText: {
     color: '#94a3b8',
@@ -387,19 +373,19 @@ const geminiStyles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    color: '#64748b',
+    color: Colors.textSecondary,
     fontSize: 11,
-    letterSpacing: 1.5,
-    fontWeight: '700',
+    letterSpacing: 1,
+    fontWeight: '600',
     marginBottom: 8,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
+    backgroundColor: Colors.surfaceMuted,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.border,
     marginBottom: 10,
   },
   input: {
@@ -423,20 +409,15 @@ const geminiStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#4285F4',
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#4285F4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: Colors.accent,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
   },
   saveBtnText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: 'bold',
-    letterSpacing: 1.2,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
 });
 
@@ -464,8 +445,8 @@ function GrokKeyModal({
                 <Image source={require('../../../assets/grok.jpeg')} style={{ width: 24, height: 24, borderRadius: 12 }} resizeMode="cover" />
               </View>
               <View>
-                <Text style={grokStyles.title}>GROK UPLINK</Text>
-                <Text style={grokStyles.subtitle}>Connect your xAI API key</Text>
+                <Text style={grokStyles.title}>Connect Grok</Text>
+                <Text style={grokStyles.subtitle}>Enter your xAI API key</Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={grokStyles.closeBtn}>
@@ -482,7 +463,7 @@ function GrokKeyModal({
           </View>
 
           {/* Key Input */}
-          <Text style={grokStyles.label}>xAI API KEY</Text>
+          <Text style={grokStyles.label}>xAI API key</Text>
           <View style={grokStyles.inputRow}>
             <TextInput
               style={grokStyles.input}
@@ -527,7 +508,7 @@ function GrokKeyModal({
             ]}
           >
             <Ionicons name="checkmark-circle" size={18} color="#fff" />
-            <Text style={grokStyles.saveBtnText}>SAVE & ACTIVATE</Text>
+            <Text style={grokStyles.saveBtnText}>Save & activate</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -543,17 +524,17 @@ const grokStyles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   sheet: {
-    backgroundColor: '#0f172a',
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: Radius.xl,
+    padding: Spacing.xxl,
     borderWidth: 1,
-    borderColor: 'rgba(34, 211, 238, 0.25)',
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -564,9 +545,9 @@ const grokStyles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(34, 211, 238, 0.12)',
+    backgroundColor: Colors.accentMuted,
     borderWidth: 1,
-    borderColor: 'rgba(34, 211, 238, 0.3)',
+    borderColor: Colors.borderStrong,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -607,19 +588,19 @@ const grokStyles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    color: '#64748b',
+    color: Colors.textSecondary,
     fontSize: 11,
-    letterSpacing: 1.5,
-    fontWeight: '700',
+    letterSpacing: 1,
+    fontWeight: '600',
     marginBottom: 8,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
+    backgroundColor: Colors.surfaceMuted,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.border,
     marginBottom: 10,
   },
   input: {
@@ -643,20 +624,15 @@ const grokStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#22D3EE',
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#22D3EE',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: Colors.accent,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
   },
   saveBtnText: {
-    color: '#000',
+    color: '#fff',
     fontSize: 14,
-    fontWeight: 'bold',
-    letterSpacing: 1.2,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
 });
 
@@ -687,8 +663,8 @@ function ModelSwitcherModal({
           {/* Header */}
           <View style={switcherStyles.header}>
             <View>
-              <Text style={switcherStyles.title}>AI ENGINE</Text>
-              <Text style={switcherStyles.subtitle}>Select your intelligence unit</Text>
+              <Text style={switcherStyles.title}>Select model</Text>
+              <Text style={switcherStyles.subtitle}>Choose your AI assistant</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={switcherStyles.closeBtn}>
               <Ionicons name="close" size={22} color="#64748b" />
@@ -737,7 +713,7 @@ function ModelSwitcherModal({
                     {needsKey && (
                       <View style={switcherStyles.keyNeededPill}>
                         <Ionicons name="key" size={10} color="#FBBF24" />
-                        <Text style={switcherStyles.keyNeededText}>KEY NEEDED</Text>
+                        <Text style={switcherStyles.keyNeededText}>Key needed</Text>
                       </View>
                     )}
                   </View>
@@ -782,7 +758,7 @@ function ModelSwitcherModal({
                   );
                 }}
               >
-                <Text style={switcherStyles.removeKeyText}>REMOVE</Text>
+                <Text style={switcherStyles.removeKeyText}>Remove</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -814,7 +790,7 @@ function ModelSwitcherModal({
                   );
                 }}
               >
-                <Text style={switcherStyles.removeKeyText}>REMOVE</Text>
+                <Text style={switcherStyles.removeKeyText}>Remove</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -831,47 +807,47 @@ const switcherStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#0f172a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
+    backgroundColor: Colors.surfaceElevated,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.xl,
     borderTopWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.2)',
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   title: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontSize: 17,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
   subtitle: {
-    color: '#64748b',
+    color: Colors.textSecondary,
     fontSize: 13,
     marginTop: 2,
   },
   closeBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1e293b',
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modelCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
     marginBottom: 10,
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: Colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.border,
     gap: 14,
   },
   modelIconBox: {
@@ -883,13 +859,14 @@ const switcherStyles = StyleSheet.create({
     borderWidth: 1,
   },
   modelName: {
-    color: '#94a3b8',
+    color: Colors.textPrimary,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
   modelDesc: {
-    color: '#475569',
-    fontSize: 12,
+    color: Colors.textMuted,
+    fontSize: Font.sizeSM,
     marginTop: 2,
   },
   activeDot: {
@@ -930,10 +907,10 @@ const switcherStyles = StyleSheet.create({
     fontSize: 12,
   },
   removeKeyText: {
-    color: '#f87171',
+    color: Colors.danger,
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
 });
 
@@ -953,8 +930,8 @@ export default function ChatScreen() {
   const [showModelSwitcher, setShowModelSwitcher] = useState(false);
   const [showGeminiKeyModal, setShowGeminiKeyModal] = useState(false);
   const [showGrokKeyModal, setShowGrokKeyModal] = useState(false);
-  const [activeStatus, setActiveStatus] = useState('NEURAL PROCESSING...');
-  const [activeMotivation, setActiveMotivation] = useState('Syncing mission parameters...');
+  const [activeStatus, setActiveStatus] = useState('Working on it...');
+  const [activeMotivation, setActiveMotivation] = useState('Thinking about your request...');
   const [manualLoading, setManualLoading] = useState(false);
   const [isNavigating, setIsNavigating] = useState(true);
   
@@ -984,7 +961,7 @@ export default function ChatScreen() {
       } else {
         setConversationId(null);
         setMessages([
-          { id: '1', role: 'assistant', content: `SYSTEM INITIALIZED: ${selectedModel.name} Agent Ready. I have full context of your repository. What is our objective?` }
+          { id: '1', role: 'assistant', content: `${selectedModel.name} is ready. I have full context of your repository. What would you like to do?` }
         ]);
       }
     });
@@ -1029,7 +1006,7 @@ export default function ChatScreen() {
 
   // Real-time todo polling while agent is working
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     const activeConvId = conversationId;
     if (manualLoading && activeConvId) {
       // Poll immediately once, then every 3 seconds
@@ -1162,7 +1139,7 @@ export default function ChatScreen() {
 ];
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isLoading) {
       interval = setInterval(() => {
         setActiveMotivation(TECH_MOTIVATIONS[Math.floor(Math.random() * TECH_MOTIVATIONS.length)]);
@@ -1176,7 +1153,7 @@ export default function ChatScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setConversationId(null);
     setMessages([
-      { id: Date.now().toString(), role: 'assistant', content: `ENGINE SWITCHED: ${model.name} online. Ready to assist.` }
+      { id: Date.now().toString(), role: 'assistant', content: `Switched to ${model.name}. Ready to help.` }
     ]);
   };
 
@@ -1204,10 +1181,10 @@ export default function ChatScreen() {
     // Add user message to UI immediately
     const userMsg = { id: Date.now().toString(), role: 'user' as const, content };
     const assistantId = (Date.now() + 1).toString();
-    const assistantMsg = { id: assistantId, role: 'assistant' as const, content: '⏳ Thinking...' };
+    const assistantMsg = { id: assistantId, role: 'assistant' as const, content: 'Thinking...' };
     
     setManualLoading(true);
-    setActiveStatus('ANALYZING REPOSITORY...');
+    setActiveStatus('Analyzing repository...');
     
     // Create the cleaned messages array for the API (only role, content, toolCalls, toolCallId)
     const currentPayload = [
@@ -1294,7 +1271,7 @@ export default function ChatScreen() {
       }
     } catch (e: any) {
       console.error('Manual link failed', e);
-      Alert.alert('Console Sync Error', e.message || 'The neural link failed to stabilize.');
+      Alert.alert('Request Error', e.message || 'The request failed. Please try again.');
       setMessages(prev => prev.filter(m => m.id !== assistantId));
     } finally {
       setManualLoading(false);
@@ -1321,8 +1298,7 @@ export default function ChatScreen() {
   const providerLabel = selectedModel.name.toUpperCase();
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <Starfield />
+    <View style={{ flex: 1, backgroundColor: Colors.background }}>
       
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView 
@@ -1340,8 +1316,8 @@ export default function ChatScreen() {
                 </TouchableOpacity>
                 <View style={{ flex: 1, marginRight: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                    <View style={[styles.livePulse, { backgroundColor: accentColor, shadowColor: accentColor }]} />
-                    <Text style={styles.missionText} numberOfLines={1}>{currentRepo?.name.toUpperCase() || 'OFFLINE'}</Text>
+                    <View style={[styles.livePulse, { backgroundColor: accentColor }]} />
+                    <Text style={styles.missionText} numberOfLines={1}>{currentRepo?.name || 'No repo'}</Text>
                   </View>
                   <TouchableOpacity onPress={() => setShowBranchModal(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Ionicons name="git-branch-outline" size={12} color="#64748b" />
@@ -1419,21 +1395,21 @@ export default function ChatScreen() {
           )}
 
           {manualLoading && (
-            <GlassBox style={styles.errorBox} intensity={50}>
+            <GlassBox style={styles.errorBox}>
               <ActivityIndicator size="small" color={accentColor} />
-              <Text style={styles.errorText}>PROCESSING...</Text>
+              <Text style={styles.errorText}>Processing...</Text>
             </GlassBox>
           )}
 
-          {/* Neural Link Input Area */}
+          {/* Input Area */}
           <View style={styles.inputWrapper}>
               <View style={styles.floatingInputBar}>
                 {Platform.OS === 'ios' ? (
-                  <BlurView intensity={80} tint="dark" style={styles.inputPill}>
+                  <View style={styles.inputPill}>
                     {renderInputContent()}
-                  </BlurView>
+                  </View>
                 ) : (
-                  <View style={[styles.inputPill, { backgroundColor: 'rgba(15, 23, 42, 0.95)' }]}>
+                  <View style={[styles.inputPill, { backgroundColor: Colors.surfaceElevated }]}>
                     {renderInputContent()}
                   </View>
                 )}
@@ -1442,7 +1418,7 @@ export default function ChatScreen() {
                  <View style={styles.statusHub}>
                     <View style={styles.typingIndicator}>
                        <ActivityIndicator size="small" color={accentColor} />
-                       <Text style={[styles.typingText, { color: accentColor }]}>{providerLabel} IS ACTIVE</Text>
+                       <Text style={[styles.typingText, { color: accentColor }]}>{providerLabel} is working</Text>
                     </View>
                     
                     <View style={styles.statusContent}>
@@ -1472,7 +1448,7 @@ export default function ChatScreen() {
             <View style={branchModalStyles.sheet}>
               <View style={branchModalStyles.header}>
                 <View>
-                  <Text style={branchModalStyles.title}>NEURAL BRANCH</Text>
+                  <Text style={branchModalStyles.title}>Switch branch</Text>
                   <Text style={branchModalStyles.subtitle}>{currentRepo?.name}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowBranchModal(false)} style={branchModalStyles.closeBtn}>
@@ -1497,7 +1473,7 @@ export default function ChatScreen() {
                       <Ionicons
                         name="git-branch"
                         size={18}
-                        color={isActive ? '#D946EF' : '#64748b'}
+                        color={isActive ? Colors.accent : Colors.textMuted}
                         style={{ marginRight: 14 }}
                       />
                       <Text style={[branchModalStyles.branchText, isActive && branchModalStyles.branchTextActive]}>
@@ -1505,7 +1481,7 @@ export default function ChatScreen() {
                       </Text>
                       {isActive && (
                         <View style={branchModalStyles.activePill}>
-                          <Text style={branchModalStyles.activePillText}>ACTIVE</Text>
+                          <Text style={branchModalStyles.activePillText}>Active</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -1619,22 +1595,19 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#22D3EE',
     marginRight: 6,
-    shadowColor: '#22D3EE',
-    shadowRadius: 3,
-    shadowOpacity: 0.8,
   },
   missionText: {
     color: '#64748B',
     fontSize: 12,
     fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontFamily: Font.sans,
     letterSpacing: 0,
   },
   headerTitle: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontFamily: Font.sans,
     letterSpacing: 0,
     marginTop: 2,
   },
@@ -1663,10 +1636,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(34, 211, 238, 0.2)',
   },
   glass: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
   compactBtn: {
     width: 30,
@@ -1729,43 +1703,37 @@ const styles = StyleSheet.create({
   userBubble: {
     backgroundColor: '#FFFFFF',
     borderBottomRightRadius: 2,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
   },
   aiBubble: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    backgroundColor: Colors.surface,
     borderBottomLeftRadius: 2,
     borderWidth: 1,
-    borderColor: 'rgba(34, 211, 238, 0.15)',
+    borderColor: Colors.border,
   },
   timestamp: {
     color: '#475569',
     fontSize: 12,
     fontWeight: '400',
     marginTop: 6,
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontFamily: Font.sans,
     textTransform: 'uppercase',
   },
   toolCall: {
     width: '88%',
     marginBottom: 10,
     borderRadius: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderColor: 'rgba(34, 211, 238, 0.3)',
+    backgroundColor: Colors.surfaceElevated,
+    borderColor: Colors.borderStrong,
   },
   toolName: {
-    color: '#22D3EE',
+    color: Colors.accent,
     fontSize: 14,
-    fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace',
+    fontWeight: '600',
+    fontFamily: Font.sans,
     marginLeft: 6,
-    letterSpacing: 1.4,
   },
   diffButton: {
-    backgroundColor: '#22D3EE',
+    backgroundColor: Colors.accent,
     padding: 8,
     borderRadius: 8,
     marginTop: 10,
@@ -1774,21 +1742,20 @@ const styles = StyleSheet.create({
   diffButtonText: {
     color: '#000',
     fontSize: 14,
-    fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
+    fontWeight: '600',
+    fontFamily: Font.sans,
+    textTransform: 'capitalize',
   },
   errorBox: {
     margin: 16,
-    backgroundColor: 'rgba(244, 63, 94, 0.1)',
-    borderColor: 'rgba(244, 63, 94, 0.3)',
+    backgroundColor: Colors.surfaceElevated,
+    borderColor: Colors.borderStrong,
   },
   errorText: {
-    color: '#f43f5e',
+    color: Colors.textSecondary,
     fontSize: 12,
-    fontWeight: '400',
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontWeight: '500',
+    fontFamily: Font.sans,
     textAlign: 'center',
     padding: 12,
   },
@@ -1813,8 +1780,9 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: Colors.border,
     minHeight: 52,
+    backgroundColor: Colors.surfaceElevated,
   },
   toolBtn: {
     width: 40,
@@ -1827,7 +1795,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#fff',
     fontSize: 16,
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontFamily: Font.sans,
     paddingHorizontal: 8,
     paddingVertical: 10,
     maxHeight: 100,
@@ -1846,12 +1814,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   typingText: {
-    color: '#22D3EE',
+    color: Colors.accent,
     fontSize: 10,
-    fontWeight: '800',
-    fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace',
+    fontWeight: '600',
+    fontFamily: Font.sans,
     marginLeft: 8,
-    letterSpacing: 2,
   },
   statusHub: {
     marginTop: 12,
@@ -1862,18 +1829,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   currentToolText: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontSize: 12,
-    fontWeight: '900',
-    fontFamily: Platform.OS === 'ios' ? 'GeistMono' : 'monospace',
-    letterSpacing: 1,
+    fontWeight: '600',
+    fontFamily: Font.sans,
     marginBottom: 2,
   },
   motivationText: {
     color: '#64748b',
     fontSize: 11,
     fontStyle: 'italic',
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontFamily: Font.sans,
   },
   copiedBadge: {
     position: 'absolute',
@@ -1894,7 +1860,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1,
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontFamily: Font.sans,
   }
 });
 
@@ -1905,38 +1871,37 @@ const branchModalStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#0f172a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
+    backgroundColor: Colors.surfaceElevated,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.xl,
     maxHeight: '55%',
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   title: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontSize: 17,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
   subtitle: {
-    color: '#64748b',
+    color: Colors.textSecondary,
     fontSize: 13,
     marginTop: 2,
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontFamily: Font.sans,
   },
   closeBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1e293b',
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1944,35 +1909,35 @@ const branchModalStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 4,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.xs,
   },
   branchItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: Colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: Colors.accent,
   },
   branchText: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     fontSize: 15,
     flex: 1,
-    fontFamily: Platform.OS === 'ios' ? 'universalSans' : 'sans-serif',
+    fontFamily: Font.sans,
   },
   branchTextActive: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontWeight: '600',
   },
   activePill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 8,
+    backgroundColor: Colors.accentMuted,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: Radius.pill,
   },
   activePillText: {
-    color: '#FFFFFF',
+    color: Colors.accent,
     fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
 });

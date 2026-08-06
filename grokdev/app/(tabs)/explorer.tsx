@@ -9,10 +9,8 @@ import { useFileStore, detectLanguage, getLanguageColor } from '../../store/file
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import Starfield from '../../components/Starfield';
-import { Image } from 'react-native';
+import { Colors, Font, Radius, Spacing } from '../../constants/theme';
 
-const GROK_LOGO = require('../../assets/Grok-trans.png');
 const FileSystem: any = require('expo-file-system/legacy');
 
 import { API_BASE_URL } from '../../constants/Config';
@@ -83,7 +81,7 @@ export default function ExplorerScreen() {
   // Re-fetch tree whenever repo OR branch changes
   useEffect(() => {
     if (currentRepo) {
-      setCurrentPath(''); // Reset path on branch change
+      setCurrentPath('');
       setTree([]);
       const task = InteractionManager.runAfterInteractions(() => {
         fetchTree();
@@ -258,74 +256,72 @@ export default function ExplorerScreen() {
 
   if (!currentRepo) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000', padding: 20 }}>
-        <Starfield />
-        <Ionicons name="logo-github" size={64} color="#1e293b" />
-        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900', marginTop: 24, textAlign: 'center', letterSpacing: 2 }}>NO REPOSITORY MOUNTED</Text>
-        <Text style={{ color: '#64748b', marginTop: 12, textAlign: 'center', fontSize: 14, lineHeight: 22 }}>Initialize a workspace uplink via the GitHub tab to browse files.</Text>
+      <View style={[styles.container, styles.emptyContainer]}>
+        <Ionicons name="logo-github" size={48} color={Colors.textMuted} />
+        <Text style={styles.emptyTitle}>No repository selected</Text>
+        <Text style={styles.emptySubtitle}>
+          Connect a repository from the Repos tab to browse files.
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Starfield />
-      
       {/* Header */}
-      <SafeAreaView style={{ backgroundColor: 'transparent' }}>
+      <SafeAreaView>
         <View style={styles.header}>
-            <Image source={GROK_LOGO} style={styles.headerLogo} resizeMode="contain" />
-            
-            <View style={{ flex: 1, alignItems: 'center' }}>
-                <TouchableOpacity
-                    onPress={() => setShowBranchModal(true)}
-                    style={styles.branchBtn}
-                >
-                    <Ionicons name="git-branch" size={14} color="#FFFFFF" />
-                    <Text style={styles.branchBtnText} numberOfLines={1}>
-                        {(currentBranch || currentRepo.default_branch || 'main').toUpperCase()}
-                    </Text>
-                    <Ionicons name="chevron-down" size={12} color="#FFFFFF" />
-                </TouchableOpacity>
-            </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.repoTitle} numberOfLines={1}>
+              {currentRepo.name}
+            </Text>
+            <Text style={styles.repoOwner} numberOfLines={1}>
+              {currentRepo.owner.login} · {currentBranch || currentRepo.default_branch || 'main'}
+            </Text>
+          </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {!isLocalMode && (
-                    <TouchableOpacity
-                    onPress={handleCloneRepo}
-                    style={styles.iconBtn}
-                    >
-                    {cloneLoading
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Ionicons name="cloud-download-outline" size={20} color="#fff" />
-                    }
-                    </TouchableOpacity>
-                )}
-                <View style={[styles.modeIndicator, { backgroundColor: isLocalMode ? '#4ade80' : '#FFFFFF' }]} />
-            </View>
+          <TouchableOpacity
+            onPress={() => setShowBranchModal(true)}
+            style={styles.branchBtn}
+          >
+            <Ionicons name="git-branch" size={14} color={Colors.textSecondary} />
+            <Text style={styles.branchBtnText} numberOfLines={1}>
+              {currentBranch || currentRepo.default_branch || 'main'}
+            </Text>
+            <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
+          {!isLocalMode && (
+            <TouchableOpacity onPress={handleCloneRepo} style={styles.iconBtn}>
+              {cloneLoading
+                ? <ActivityIndicator size="small" color={Colors.textSecondary} />
+                : <Ionicons name="cloud-download-outline" size={20} color={Colors.textSecondary} />
+              }
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
 
       {/* Breadcrumb / Path Navigation */}
       <View style={styles.breadcrumbArea}>
         <TouchableOpacity onPress={() => setCurrentPath('')} style={styles.homeBtn}>
-          <Ionicons name="home" size={16} color={currentPath === '' ? '#fff' : '#475569'} />
+          <Ionicons name="home" size={16} color={currentPath === '' ? Colors.accent : Colors.textMuted} />
         </TouchableOpacity>
         {currentPath !== '' && (
           <>
-            <Ionicons name="chevron-forward" size={14} color="#1e293b" style={{ marginRight: 8 }} />
+            <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} style={{ marginRight: Spacing.sm }} />
             <Text style={styles.pathText} numberOfLines={1}>
-              {currentPath.toUpperCase()}
+              {currentPath}
             </Text>
             <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={16} color="#FFFFFF" />
+              <Ionicons name="arrow-back" size={16} color={Colors.textPrimary} />
             </TouchableOpacity>
           </>
         )}
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#FFFFFF" style={{ marginTop: 50 }} />
+        <ActivityIndicator size="large" color={Colors.accent} style={{ marginTop: 50 }} />
       ) : (
         <FList
           data={filteredTree}
@@ -342,28 +338,27 @@ export default function ExplorerScreen() {
                 activeOpacity={0.7}
                 style={styles.treeItem}
               >
-                <View style={[styles.treeIconBox, { backgroundColor: isDir ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.02)' }]}>
+                <View style={styles.treeIconBox}>
                   <Ionicons
                     name={isDir ? 'folder' : (fileInfo?.icon as any) || 'document-text'}
                     size={isDir ? 18 : 16}
-                    color={isDir ? '#FFFFFF' : (fileInfo?.color || '#475569')}
+                    color={isDir ? Colors.accent : (fileInfo?.color || Colors.textMuted)}
                   />
                 </View>
                 <Text style={styles.treeItemText} numberOfLines={1}>{fileName}</Text>
-                
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <TouchableOpacity 
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  <TouchableOpacity
                     onPress={() => copyToClipboard(item.path)}
                     style={styles.copyBtn}
-                    >
-                    <Ionicons name="copy-outline" size={14} color="#64748b" />
-                    </TouchableOpacity>
-
-                    <Ionicons 
-                        name={isDir ? 'chevron-forward' : 'open-outline'} 
-                        size={14} 
-                        color="#1e293b" 
-                    />
+                  >
+                    <Ionicons name="copy-outline" size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                  <Ionicons
+                    name={isDir ? 'chevron-forward' : 'open-outline'}
+                    size={14}
+                    color={Colors.textMuted}
+                  />
                 </View>
               </TouchableOpacity>
             );
@@ -373,7 +368,7 @@ export default function ExplorerScreen() {
           refreshing={loading}
           ListEmptyComponent={() => (
             <View style={{ marginTop: 100, alignItems: 'center' }}>
-              <Text style={{ color: '#64748b' }}>Empty directory</Text>
+              <Text style={{ color: Colors.textMuted }}>Empty directory</Text>
             </View>
           )}
         />
@@ -386,16 +381,16 @@ export default function ExplorerScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>SWITCH BRANCH</Text>
+                <Text style={styles.modalTitle}>Switch branch</Text>
                 <Text style={styles.modalSubtitle}>{currentRepo.name}</Text>
               </View>
               <TouchableOpacity onPress={() => setShowBranchModal(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={22} color="#64748b" />
+                <Ionicons name="close" size={22} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {branchesLoading ? (
-              <ActivityIndicator size="large" color="#FFFFFF" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={Colors.accent} style={{ marginTop: 40 }} />
             ) : (
               <FlatList
                 data={branches}
@@ -410,7 +405,7 @@ export default function ExplorerScreen() {
                       <Ionicons
                         name="git-branch"
                         size={18}
-                        color={isActive ? '#FFFFFF' : '#64748b'}
+                        color={isActive ? Colors.accent : Colors.textMuted}
                         style={{ marginRight: 14 }}
                       />
                       <Text style={[styles.branchItemText, isActive && styles.branchItemTextActive]}>
@@ -418,7 +413,7 @@ export default function ExplorerScreen() {
                       </Text>
                       {isActive && (
                         <View style={styles.activePill}>
-                          <Text style={styles.activePillText}>ACTIVE</Text>
+                          <Text style={styles.activePillText}>Active</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -426,7 +421,7 @@ export default function ExplorerScreen() {
                 }}
                 ListEmptyComponent={() => (
                   <View style={{ alignItems: 'center', marginTop: 40 }}>
-                    <Text style={{ color: '#64748b' }}>No branches found</Text>
+                    <Text style={{ color: Colors.textMuted }}>No branches found</Text>
                   </View>
                 )}
               />
@@ -437,13 +432,9 @@ export default function ExplorerScreen() {
 
       {/* File Loading Overlay */}
       {fileLoading && (
-        <View style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.85)',
-          justifyContent: 'center', alignItems: 'center',
-        }}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
-          <Text style={{ color: '#94a3b8', marginTop: 12, fontSize: 13, letterSpacing: 1 }}>LOADING FILE...</Text>
+        <View style={styles.fileOverlay}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text style={styles.fileOverlayText}>Loading file...</Text>
         </View>
       )}
     </View>
@@ -453,60 +444,72 @@ export default function ExplorerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.background,
+  },
+  emptyContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  emptyTitle: {
+    color: Colors.textPrimary,
+    fontSize: Font.sizeLG,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+    marginTop: Spacing.xl,
+  },
+  emptySubtitle: {
+    color: Colors.textSecondary,
+    fontSize: Font.sizeMD,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    lineHeight: 22,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 10 : 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.md,
   },
-  headerLogo: {
-    width: 100,
-    height: 40,
+  repoTitle: {
+    color: Colors.textPrimary,
+    fontSize: Font.sizeXL,
+    fontWeight: '700',
+    fontFamily: Font.sans,
   },
-  repoName: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  modeIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginLeft: 12,
-  },
-  modeLabel: {
-    color: '#94a3b8',
-    fontSize: 12,
+  repoOwner: {
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
+    fontFamily: Font.sans,
+    marginTop: 2,
   },
   branchBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 100,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 6,
+    borderColor: Colors.border,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    gap: Spacing.xs,
   },
   branchBtnText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
+    color: Colors.textPrimary,
+    fontSize: Font.sizeSM,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+    maxWidth: 90,
   },
   iconBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: Colors.surface,
     width: 36,
     height: 36,
-    borderRadius: 8,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: Radius.md,
+    borderColor: Colors.border,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -514,88 +517,89 @@ const styles = StyleSheet.create({
   breadcrumbArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
+    borderBottomColor: Colors.border,
   },
   homeBtn: {
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   pathText: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
+    fontFamily: Font.mono,
     flex: 1,
   },
   backBtn: {
-    marginLeft: 8,
+    marginLeft: Spacing.sm,
   },
   treeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
+    borderBottomColor: Colors.border,
   },
   treeIconBox: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: Spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.02)',
+    borderColor: Colors.border,
   },
   treeItemText: {
-    color: '#fff',
-    fontSize: 14,
+    color: Colors.textPrimary,
+    fontSize: Font.sizeMD,
     fontWeight: '500',
+    fontFamily: Font.sans,
     flex: 1,
   },
   copyBtn: {
-    padding: 8,
+    padding: Spacing.sm,
   },
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#0f172a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.xxl,
     maxHeight: '55%',
     borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: Colors.border,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   modalTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 2,
+    color: Colors.textPrimary,
+    fontSize: Font.sizeLG,
+    fontWeight: '600',
+    fontFamily: Font.sans,
   },
   modalSubtitle: {
-    color: '#64748b',
-    fontSize: 12,
-    marginTop: 4,
+    color: Colors.textSecondary,
+    fontSize: Font.sizeSM,
+    marginTop: 2,
   },
   closeBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1e293b',
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -603,34 +607,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 4,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.xs,
   },
   branchItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: Colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: Colors.accent,
   },
   branchItemText: {
-    color: '#94a3b8',
-    fontSize: 15,
+    color: Colors.textSecondary,
+    fontSize: Font.sizeMD,
+    fontFamily: Font.sans,
     flex: 1,
   },
   branchItemTextActive: {
-    color: '#fff',
+    color: Colors.textPrimary,
     fontWeight: '600',
   },
   activePill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 8,
+    backgroundColor: Colors.accentMuted,
+    paddingHorizontal: Spacing.md,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: Radius.pill,
   },
   activePillText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
+    color: Colors.accent,
+    fontSize: Font.sizeXS,
+    fontWeight: '600',
+    fontFamily: Font.sans,
+  },
+  fileOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(11, 13, 16, 0.9)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  fileOverlayText: {
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+    fontSize: Font.sizeMD,
+    fontFamily: Font.sans,
   },
 });

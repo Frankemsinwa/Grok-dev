@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useRepoStore } from '../store/repoStore';
 import { View, ActivityIndicator } from 'react-native';
 import Onboarding from '../components/Onboarding';
+import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
   const { isAuthenticated, hasOnboarded, loadAuth, finishOnboarding } = useAuthStore();
@@ -44,8 +45,8 @@ export default function RootLayout() {
 
   if (isInitialLoad) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background }}>
+        <ActivityIndicator size="large" color={Colors.accent} />
       </View>
     );
   }
