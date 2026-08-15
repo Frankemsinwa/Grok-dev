@@ -226,11 +226,6 @@ in the Software without restriction...
 
 ---
 
-## 📱 Screenshots
-
-| Chat | Editor | Explorer | GitHub |
-|------|--------|----------|--------|
-| ![Chat](grokdev/assets/onboarding/step1.png) | ![Editor](grokdev/assets/onboarding/step2.png) | ![Explorer](grokdev/assets/onboarding/step3.png) | ![GitHub](grokdev/assets/Grok-trans.png) |
 
 ---
 
